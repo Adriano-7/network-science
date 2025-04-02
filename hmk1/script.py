@@ -269,5 +269,4 @@ def run_barabasi_albert():
     exercise_8()
 
 if __name__ == "__main__":
-    run_erdos_renyi()
-    run_barabasi_albert()
+    exercise_6()

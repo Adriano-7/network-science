@@ -186,6 +186,69 @@ Betweenness Centrality measures how often a node lies on the shortest paths betw
 
 ### (m) Consider a network formed only by Ryanair flights. What is the number of nodes and edges of its giant component? Considering only this giant component, what is the most important airport in terms of closeness centrality?
 
+- **Steps Taken:**
+  - Loaded the GEXF file into Gephi without merging multiple edges.
+  - Applied a filter to include only edges where the "airline" attribute is "FR" (Ryanair).
+  - Ran the "Connected Components" statistic to identify the giant component.
+  - Filtered the network to display only the giant component using the largest "Component ID".
+  - Noted the number of nodes and edges from the "Context" panel. (176 nodes, 5632 edges).
+  - On the statistics panel, selected the *Network Diameter* statistic.
+  - Sorted nodes by closeness centrality in the "Data Laboratory" to identify the top airport(London Stansted Airport - STN) with 0.782 closeness centrality.
+
+- **Results:**
+  - **Number of nodes in the giant component:** 176
+  - **Number of edges in the giant component:** 5632
+  - **Airport with the highest closeness centrality:** London Stansted Airport (STN) with a closeness centrality of 0.782.
+  
+![alt text](qM.png)
+
 ### (n)  How many airport are reachable from Francisco de Sá Carneiro Porto Airport in 1 flight? And in at most 2 flights? And in at most 3 flights?
 
+- **Steps Taken:**
+  - Loaded the GEXF file into Gephi with the **SUM merge** strategy.
+  - In data laboratory, used cntrol+f to search for the Francisco de Sá Carneiro Porto Airport (ID: 1636).
+    3.  Went to the *Filters* panel -> *Topology*.
+    4.  Dragged the **Ego Network** filter into the *Queries* area.
+    5.  Configured the Ego Network filter:
+        *   Set `ID` to `1636`.
+        *   Set `Depth` to `1`.
+        *   Set without self-loops.
+
+        Notice the value `61` in the *Context* panel. This is the number of reachable airports from OPO in 1 flight.
+
+    
+    6.  Modified the Ego Network filter:
+        *   Set `Depth` to `2`.
+
+        Notice the value `755` in the *Context* panel. This is the number of reachable airports from OPO in 2 flights.
+
+    7.  Modified the Ego Network filter:
+        *   Set `Depth` to `3`.
+
+        Notice the value `2376` in the *Context* panel. This is the number of reachable airports from OPO in 3 flights.
+
+- **Results:**
+  - **Number of airports reachable from Francisco de Sá Carneiro Porto Airport in 1 flight:** `61`
+  - **Number of airports reachable from Francisco de Sá Carneiro Porto Airport in at most 2 flights:** `755`
+  - **Number of airports reachable from Francisco de Sá Carneiro Porto Airport in at most 3 flights:** `2376`
+
+I'll help you improve the formatting of section (o) to match the style of the other sections in your document. Here's my restructured version:
+
 ### (o) Create an image showing the flight network between american and canadian aiports with more than 100 destinations in the global network. The size of the nodes should reflect the global betweenness centrality, and their colors should be different for each time zone. Nodes should be labeled with the city name. Try to make your image as comprehensible and aesthetically pleasing as possible.
+
+- **Steps Taken:**
+  - Loaded the GEXF file into Gephi with the **SUM merge strategy** to ensure Out-Degree correctly reflects the number of unique destinations.
+  - In the *Statistics* panel, ran **Average Degree** to calculate In-Degree and Out-Degree for all nodes in the entire network.
+  - Ran **Network Diameter** with the "Directed" option checked to calculate betweenness centrality.
+  - Applied filters:
+    - Created an **INTERSECTION** filter combining:
+      - **Node: country** filter set to `United States` and `Canada`
+      - **Node: Out-Degree** filter set to range `[101 .. 239]`
+    - This resulted in 19 nodes and 338 edges.
+  - Applied visual mappings:
+    - **Color:** Used **Partition** by **`tz`** (timezone) attribute, generating colors without limiting the number.
+    - **Size:** Used **Ranking** by **`Betweenness Centrality`** with Min size 50 and Max size 400.
+  - Applied **Geo Layout** with scale 10000.
+  - Enabled node labels, displaying the **city** attribute with size 32.
+
+  ![alt text](image.png)

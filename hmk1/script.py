@@ -238,8 +238,14 @@ def exercise_7():
     net2.save_to_file('ba2.txt')
 
 def exercise_8():
-    ba1 = Graph(filename='ba1.txt')
-    ba2 = Graph(filename='ba2.txt')
+    """
+    8. The previous process should generate a scale-free network with a power law degree distribution with
+    exponent α = 3.
+    Plot the degree distribution of both your generated networks using cumulative binning (see
+    slides 102 and 103) and try to fit with the corresponding power law function (showing it in the plot)
+    """
+    ba1 = Graph(filename='docs/ba1.txt')
+    ba2 = Graph(filename='docs/ba2.txt')
     degrees1 = [ba1.get_degree_of_node(i) for i in range(ba1.n)]
     degrees2 = [ba2.get_degree_of_node(i) for i in range(ba2.n)]
 
@@ -248,25 +254,45 @@ def exercise_8():
     density1 = counts1 / sum(counts1)
     density2 = counts2 / sum(counts2)
 
-    plt.scatter(unique_degrees1, density1, alpha=0.7, label='BA1', marker='o')
-    plt.scatter(unique_degrees2, density2, alpha=0.7, label='BA2', marker='x')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlabel('Degree (log scale)')
-    plt.ylabel('Density (log scale)')
-    plt.title('Degree Distribution (Log-Log Scale)')
-    plt.legend()
-    plt.savefig('docs/ex8_loglog_points.png')
+    alpha = 3
+    x_range1 = np.linspace(min(unique_degrees1), max(unique_degrees1), 100)
+    x_range2 = np.linspace(min(unique_degrees2), max(unique_degrees2), 100)
+    scale_factor1 = density1[0] * (unique_degrees1[0] ** alpha)
+    scale_factor2 = density2[0] * (unique_degrees2[0] ** alpha)
+    cumulative1 = [sum(density1[j] for j in range(len(density1)) if unique_degrees1[j] >= d) for d in unique_degrees1]
+    cumulative2 = [sum(density2[j] for j in range(len(density2)) if unique_degrees2[j] >= d) for d in unique_degrees2]
+    cum_power_law1 = scale_factor1 * (x_range1 ** (-alpha+1)) / (alpha-1)
+    cum_power_law2 = scale_factor2 * (x_range2 ** (-alpha+1)) / (alpha-1)
+    cum_scale1 = cumulative1[0] / cum_power_law1[0]
+    cum_scale2 = cumulative2[0] / cum_power_law2[0]
+
+    fig, (plot1, plot2) = plt.subplots(1, 2, figsize=(16, 6))
+
+    plot1.scatter(unique_degrees1, cumulative1, label='BA1 Data', color='blue')
+    plot1.plot(x_range1, cum_power_law1 * cum_scale1, '--', color='darkblue', label=r'Power Law ($\alpha=3$)')
+    plot1.set_xscale('log')
+    plot1.set_yscale('log')
+    plot1.set_xlabel('Degree (log scale)')
+    plot1.set_ylabel('Cumulative Probability (log scale)')
+    plot1.set_title('BA1 Network (m0=3, m=1)')
+    plot1.legend()
+    plot1.grid(True, alpha=0.3)
+
+    plot2.scatter(unique_degrees2, cumulative2, label='BA2 Data', color='red')
+    plot2.plot(x_range2, cum_power_law2 * cum_scale2, '--', color='darkred', label=r'Power Law ($\alpha=3$)')
+    plot2.set_xscale('log')
+    plot2.set_yscale('log')
+    plot2.set_xlabel('Degree (log scale)')
+    plot2.set_ylabel('Cumulative Probability (log scale)')
+    plot2.set_title('BA2 Network (m0=5, m=2)')
+    plot2.legend()
+    plot2.grid(True, alpha=0.3)
+
+    fig.suptitle('Cumulative Degree Distributions with Power Law Fits (Log-Log Scale)', fontsize=16)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.savefig('docs/ex8.png')
     plt.show()
 
-def run_erdos_renyi():
-    exercise_4()
-    exercise_5()
-    exercise_6()
-
-def run_barabasi_albert():
-    exercise_7()
-    exercise_8()
 
 if __name__ == "__main__":
-    exercise_6()
+    exercise_8()

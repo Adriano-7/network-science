@@ -79,7 +79,9 @@ class NormalizedPageRank:
     """
     Calculates the PageRank scores of a graph using the power iteration method.
     PageRank values of all nodes are stored in the page_rank attribute as a numpy array.
-    Damping factor is represented by Beta.
+    Damping factor is represented by Beta. 
+        - Beta represents the probability of following an existing link.
+        - 1 - Beta represents the probability of jumping to any random node.
     """
     def __init__(self, graph: Graph, beta: float = 0.85, convergence_threshold: float = 1e-6):
         self.graph = graph
@@ -92,11 +94,11 @@ class NormalizedPageRank:
     def calculate_scores(self):
         while True:
             new_page_rank = np.zeros(self.n)
-            for i in range(self.n):
-                neighbors = self.graph._get_neighbors(i)
+            for j in range(self.n):
+                neighbors = self.graph._get_neighbors(j)
                 if neighbors:
-                    for neighbor in neighbors:
-                        new_page_rank[neighbor] += self.page_rank[i] / len(neighbors)
+                    for i in neighbors:
+                        new_page_rank[j] += self.page_rank[i] / self.graph.get_degree_of_node(i)
             new_page_rank = (1 - self.beta) / self.n + self.beta * new_page_rank
             if np.linalg.norm(new_page_rank - self.page_rank, ord=1) < self.convergence_threshold:
                 break
@@ -115,6 +117,7 @@ class NormalizedPageRank:
 
     def number_of_iterations(self):
         return len(self.page_rank_history)
+
 
 def exercise_4():
     net4 = Graph(filename='docs/ex4_network.txt')

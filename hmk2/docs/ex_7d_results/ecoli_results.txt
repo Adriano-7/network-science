@@ -1,0 +1,80 @@
+gtrieScanner Results
+------------------------------------------
+General Information
+
+Start of Computation: 22h41m16s 27/05/2025
+End of Computation: 22h41m16s 27/05/2025
+
+Subgraph Size: 3
+Graph File: "networks_ex_7d/ecoli.txt"
+Directed: YES
+Nr Nodes: 99
+Nr Edges: 212
+
+Method: GTRIE with file containing complete g-trie
+Different Types of Subgraphs Found [Original Network]: 4
+Subgraph Occurrences Found [Original Network]: 674
+Time for computing census on original network: 0.000501s
+Average time for census on random network: 0.000157s
+
+Number of random networks: 500
+Random seed: 1748382076
+Exchanges per edge: 3
+Number of tries per exchange: 10
+------------------------------------------
+Motif Analysis Results
+
+Graph   Org_Freq |  Z-score |    Rnd_Avg +/-    Rnd_Dev
+
+011
+001
+000          130 |    36.08 |      11.90 +/-       3.27
+
+001
+100
+000          250 |    -6.99 |     344.51 +/-      13.52
+
+011
+000
+000          168 |   -15.61 |     277.53 +/-       7.02
+
+000
+100
+100          126 |   -18.68 |     237.74 +/-       5.98
+
+001
+100
+010            0 |     -nan |       0.00 +/-       0.00
+
+010
+100
+100            0 |     -nan |       0.00 +/-       0.00
+
+010
+100
+110            0 |     -nan |       0.00 +/-       0.00
+
+011
+100
+000            0 |     -nan |       0.00 +/-       0.00
+
+011
+100
+010            0 |     -nan |       0.00 +/-       0.00
+
+011
+100
+100            0 |     -nan |       0.00 +/-       0.00
+
+011
+101
+000            0 |     -nan |       0.00 +/-       0.00
+
+011
+101
+100            0 |     -nan |       0.00 +/-       0.00
+
+011
+101
+110            0 |     -nan |       0.00 +/-       0.00
+

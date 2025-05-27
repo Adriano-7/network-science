@@ -1,0 +1,80 @@
+gtrieScanner Results
+------------------------------------------
+General Information
+
+Start of Computation: 23h54m53s 27/05/2025
+End of Computation: 23h54m54s 27/05/2025
+
+Subgraph Size: 3
+Graph File: "ex_7e/network_a.txt"
+Directed: YES
+Nr Nodes: 512
+Nr Edges: 819
+
+Method: GTRIE with file containing complete g-trie
+Different Types of Subgraphs Found [Original Network]: 4
+Subgraph Occurrences Found [Original Network]: 2401
+Time for computing census on original network: 0.001170s
+Average time for census on random network: 0.000188s
+
+Number of random networks: 500
+Random seed: 1748386493
+Exchanges per edge: 3
+Number of tries per exchange: 10
+------------------------------------------
+Motif Analysis Results
+
+Graph   Org_Freq |  Z-score |    Rnd_Avg +/-    Rnd_Dev
+
+001
+100
+010           40 |    38.49 |       1.04 +/-       1.01
+
+000
+100
+100          401 |     1.85 |     396.05 +/-       2.67
+
+011
+000
+000          860 |     1.46 |     853.88 +/-       4.18
+
+001
+100
+000         1100 |   -13.43 |    1206.73 +/-       7.95
+
+010
+100
+100            0 |     -nan |       0.00 +/-       0.00
+
+010
+100
+110            0 |     -nan |       0.00 +/-       0.00
+
+011
+001
+000            0 |     -nan |       0.00 +/-       0.00
+
+011
+100
+000            0 |     -nan |       0.00 +/-       0.00
+
+011
+100
+010            0 |     -nan |       0.00 +/-       0.00
+
+011
+100
+100            0 |     -nan |       0.00 +/-       0.00
+
+011
+101
+000            0 |     -nan |       0.00 +/-       0.00
+
+011
+101
+100            0 |     -nan |       0.00 +/-       0.00
+
+011
+101
+110            0 |     -nan |       0.00 +/-       0.00
+

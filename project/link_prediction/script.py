@@ -5,15 +5,14 @@ def main():
     print("Initializing experiment...")
     dataset_manager = DatasetManager(dataset_name='Twitch')
     model = AdamicAdarModel()
+    model.train(dataset_manager.train_data)
     print("\nPredicting scores for test edges...")
     test_scores = model.predict(
         graph_data=dataset_manager.train_data,
-        edges_to_predict=dataset_manager.test_data.edge_label_index
+        edges_to_predict=dataset_manager.all_test_edges
     )
     print("\n--- Model Predictions ---")
     print(f"Generated {len(test_scores)} scores for the test edges using {model.__class__.__name__}.")
-    print("Example scores:", test_scores[:10])
-    # evaluate the model
     print("\nExperiment finished.")
 
 

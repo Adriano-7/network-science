@@ -8,29 +8,24 @@ class DatasetManager:
 
     This class handles the critical step of creating a standardized
     train/validation/test split of edges. By setting a seed, it ensures
-    this split is **reproducible** and identical every time the code is run.
+    this split is reproducible and identical every time the code is run.
 
     Attributes:
         train_data: The graph used for training, with some edges removed.
         val_data: Contains the validation edges (positive and negative).
         test_data: Contains the test edges (positive and negative).
+        all_test_edges: A tensor containing all test edges (both positive and negative).
     """
     def __init__(self, dataset_name: str, path: str = '/tmp/', seed: int = 42):
-        """
-        Args:
-            dataset_name (str): The name of the dataset to load (e.g., 'Cora', 'Twitch').
-            path (str): The root directory where datasets are stored.
-            seed (int): The random seed to ensure reproducible data splits.
-        """
         self.dataset_name = dataset_name
         self.path = path
         self.seed = seed
         self._load_and_split()
+        self.all_test_edges = torch.cat(
+            [self.test_data.pos_edge_label_index, self.test_data.neg_edge_label_index], dim=-1
+        )
 
     def _load_and_split(self):
-        """
-        Loads the specified dataset and performs a reproducible link-level split.
-        """
         print(f"Loading {self.dataset_name} dataset...")
 
         if self.dataset_name.lower() == 'twitch':

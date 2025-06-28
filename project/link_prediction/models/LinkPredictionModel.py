@@ -1,4 +1,3 @@
-# In: project/link_prediction/models/LinkPredictionModel.py
 from abc import ABC, abstractmethod
 from torch_geometric.data import Data
 import torch

@@ -1,0 +1,2 @@
+timestamp,model_name,AUC,MRR,Hits@10,Hits@50,Hits@100
+2025-06-28 21:37:08,AdamicAdarModel,0.7857,0.1808,0.3127,0.4484,0.5324

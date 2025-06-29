@@ -5,18 +5,23 @@ from models.heuristics.AdamicAdar import AdamicAdarModel
 from models.heuristics.CommonNeighbors import CommonNeighborsModel
 from models.heuristics.JaccardIndex import JaccardIndexModel
 from models.heuristics.PreferentialAttachment import PreferentialAttachmentModel
+from models.deep_learning.GCN import GCNModel
+from models.deep_learning.GraphSAGE import GraphSAGEModel
 
 def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, evaluator: Evaluator):
-
+    """
+    Runs a single experiment for a given model.
+    """
     print("\n" + "="*50)
     print(f"Starting experiment for model: {model.__class__.__name__}")
     print("="*50)
 
+    # The GNN models require actual training, unlike heuristics
     model.train(dataset_manager.train_data, dataset_manager.val_data)
     
     print(f"\nPredicting scores for test edges using {model.__class__.__name__}...")
     test_scores = model.predict(
-        graph_data=dataset_manager.train_data,
+        graph_data=dataset_manager.train_data,  # Predict on the training graph structure
         edges_to_predict=dataset_manager.all_test_edges
     )
     
@@ -26,6 +31,7 @@ def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, 
 
     print(f"Generated {len(test_scores)} scores for the test edges.")
 
+    # Evaluate the model's predictions
     evaluator.evaluate(
         model_name=model.__class__.__name__,
         predictions=test_scores,
@@ -36,20 +42,36 @@ def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, 
 
 def main():
     print("Initializing experiment suite...")
-    dataset_manager = DatasetManager(dataset_name='Twitch', seed=42)
+    dataset_manager = DatasetManager(dataset_name='Cora', seed=42)
     evaluator = Evaluator(dataset_name=dataset_manager.dataset_name)
     
+    print("\n" + "="*50)
     print(f"Dataset loaded: {dataset_manager.dataset_name}")
     print(f"Total nodes: {dataset_manager.train_data.num_nodes}")
+    print(f"Node features: {dataset_manager.train_data.num_features}")
     print(f"Train edges (for message passing): {dataset_manager.train_data.edge_index.size(1)}")
-    print(f"Validation edges (pos+neg): {dataset_manager.all_val_edges.size(1)}")
     print(f"Test edges (pos+neg): {dataset_manager.all_test_edges.size(1)}")
+    print("="*50)
     
+    # --- Define all models to be evaluated ---
+    
+    # GNN models need the number of input features from the dataset
+    num_node_features = dataset_manager.train_data.num_features
+    
+    gcn_model = GCNModel(
+        in_channels=num_node_features, hidden_channels=128, emb_dim=64, epochs=500, lr=0.001
+    )
+    graphsage_model = GraphSAGEModel(
+        in_channels=num_node_features, hidden_channels=128, out_channels=64, epochs=500, lr=0.01
+    )
+
     models_to_run = [
-        AdamicAdarModel(),
-        CommonNeighborsModel(),
-        JaccardIndexModel(),
-        PreferentialAttachmentModel(),
+        # AdamicAdarModel(),
+        # CommonNeighborsModel(),
+        # JaccardIndexModel(),
+        # PreferentialAttachmentModel(),
+        # gcn_model,
+        # graphsage_model,
     ]
 
     for model in models_to_run:

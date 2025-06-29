@@ -77,10 +77,10 @@ class Evaluator:
         }
         
         header = results_dict.keys()
+        write_header = not os.path.exists(self.results_path)
         with open(self.results_path, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=header)
-            if not os.path.exists(self.results_path):
+            if write_header:
                 writer.writeheader()
             writer.writerow(results_dict)
-            
         print(f"Evaluation report appended to {self.results_path}")

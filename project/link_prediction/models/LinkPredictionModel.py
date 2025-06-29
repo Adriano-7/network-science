@@ -8,7 +8,7 @@ class LinkPredictionModel(ABC):
     """
 
     @abstractmethod
-    def train(self, train_data: Data, val_data: Data = None):
+    def train(self, train_data: Data = None, val_data: Data = None):
         pass
 
     @abstractmethod

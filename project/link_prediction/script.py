@@ -3,6 +3,7 @@ from models.AdamicAdar import AdamicAdarModel
 from Evaluator import Evaluator
 
 def main():
+    
     print("Initializing experiment...")
     dataset_manager = DatasetManager(dataset_name='Twitch')
     model = AdamicAdarModel()

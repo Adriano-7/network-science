@@ -6,6 +6,7 @@ from models.heuristics.CommonNeighbors import CommonNeighborsModel
 from models.heuristics.JaccardIndex import JaccardIndexModel
 from models.heuristics.PreferentialAttachment import PreferentialAttachmentModel
 from models.traditional_ml.DecisionTree import DecisionTreeModel
+from models.traditional_ml.LogisticRegression import LogisticRegressionModel
 from models.deep_learning.GCN import GCNModel
 from models.deep_learning.GraphSAGE import GraphSAGEModel
 
@@ -64,7 +65,8 @@ def main():
         # PreferentialAttachmentModel(),
         # gcn_model,
         # graphsage_model,
-        DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=42)
+        # DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=42)
+        LogisticRegressionModel(),
     ]
 
     for model in models_to_run:

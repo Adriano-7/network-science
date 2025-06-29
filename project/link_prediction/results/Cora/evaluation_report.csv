@@ -5,3 +5,4 @@ timestamp,model_name,AUC,MRR,Hits@10,Hits@50,Hits@100
 2025-06-29 18:57:09,CommonNeighborsModel,0.6706,0.1236,0.3515,0.3515,0.3515
 2025-06-29 18:57:09,JaccardIndexModel,0.6704,0.1268,0.3515,0.3515,0.3515
 2025-06-29 18:57:09,PreferentialAttachmentModel,0.6372,0.0565,0.1188,0.2642,0.3603
+2025-06-29 19:07:50,DecisionTreeModel,0.6985,0.0672,0.3059,0.3919,0.5284

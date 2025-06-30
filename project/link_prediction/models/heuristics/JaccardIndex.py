@@ -12,7 +12,7 @@ class JaccardIndexModel(LinkPredictionModel):
         print("Jaccard Index is a heuristic model and does not require training.")
         pass
 
-    def predict(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
+    def predict_edges(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
         print("Building graph from training edges only to prevent data leakage...")
         graph_for_prediction = Data(edge_index=graph_data.edge_index, num_nodes=graph_data.num_nodes)
         nx_graph = to_networkx(graph_for_prediction, to_undirected=True)

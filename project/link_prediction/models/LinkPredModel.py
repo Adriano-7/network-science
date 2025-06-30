@@ -9,5 +9,5 @@ class LinkPredictionModel(ABC):
         pass
 
     @abstractmethod
-    def predict(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
+    def predict_edges(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
         pass

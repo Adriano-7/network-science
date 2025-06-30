@@ -113,7 +113,7 @@ class GCNModel(LinkPredictionModel):
         out = self.model.decoder(z, val_edges).sigmoid()
         return roc_auc_score(val_labels.cpu().numpy(), out.cpu().numpy())
 
-    def predict(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
+    def predict_edges(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
         print("Generating predictions with trained GCN...")
         self.model.eval()
         with torch.no_grad():

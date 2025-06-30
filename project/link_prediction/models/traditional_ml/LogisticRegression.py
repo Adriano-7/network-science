@@ -45,7 +45,7 @@ class LogisticRegressionModel(LinkPredictionModel):
         self._is_trained = True
         print("Training complete.")
 
-    def predict(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
+    def predict_edges(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
         if not self._is_trained:
             raise RuntimeError("Model has not been trained yet. Call train() first.")
 

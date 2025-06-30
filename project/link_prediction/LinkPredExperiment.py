@@ -19,7 +19,7 @@ def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, 
     model.train(dataset_manager.train_data, dataset_manager.val_data)
     
     print(f"\nPredicting scores for test edges using {model.__class__.__name__}...")
-    test_scores = model.predict(
+    test_scores = model.predict_edges(
         graph_data=dataset_manager.train_data,
         edges_to_predict=dataset_manager.all_test_edges
     )

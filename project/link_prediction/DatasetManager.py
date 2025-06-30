@@ -16,22 +16,17 @@ class DatasetManager:
     def _load_and_split(self):
         print(f"Loading {self.dataset_name} dataset...")
 
-        if self.dataset_name.lower() == 'twitch':
-            dataset = Twitch(root=self.path + 'Twitch', name='EN')
+        if self.dataset_name.lower().startswith('twitch'):
+            country = self.dataset_name.split('-')[-1].upper() if '-' in self.dataset_name else 'EN'
+            dataset = Twitch(root=self.path + "Twitch", name=country)
         elif self.dataset_name.lower() in ['cora', 'citeseer', 'pubmed']:
             dataset = Planetoid(root=self.path + self.dataset_name, name=self.dataset_name)
         else:
             raise ValueError(f"Dataset '{self.dataset_name}' not supported by this manager.")
 
-        if len(dataset) == 0:
-            raise ValueError(f"Dataset {self.dataset_name} is empty")
-
         torch.manual_seed(self.seed)
         data = dataset[0]
-        
-        if data.edge_index.size(1) == 0:
-            raise ValueError("Dataset contains no edges")
-            
+              
         transform = T.RandomLinkSplit(
             num_val=self.val_ratio,
             num_test=self.test_ratio,

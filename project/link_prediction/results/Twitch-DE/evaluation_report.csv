@@ -1,0 +1,5 @@
+timestamp,model_name,AUC,MRR,Hits@10,Hits@50,Hits@100
+2025-06-30 11:28:56,CommonNeighborsModel,0.8657,0.0499,0.1035,0.2170,0.2789
+2025-06-30 11:28:59,JaccardIndexModel,0.7828,0.0591,0.0588,0.0646,0.0684
+2025-06-30 11:32:43,AdamicAdarModel,0.8770,0.0564,0.1205,0.2560,0.3370
+2025-06-30 11:32:44,PreferentialAttachmentModel,0.8809,0.0323,0.0728,0.1741,0.2328

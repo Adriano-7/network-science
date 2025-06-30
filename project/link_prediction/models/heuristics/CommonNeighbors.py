@@ -13,19 +13,7 @@ class CommonNeighborsModel(LinkPredictionModel):
         pass
 
     def predict(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
-        if edges_to_predict.size(1) == 0:
-            return torch.empty(0, dtype=torch.float)
-
-        try:
-            nx_graph = to_networkx(graph_data, to_undirected=True)
-            if len(nx_graph.nodes()) == 0:
-                return torch.zeros(edges_to_predict.size(1), dtype=torch.float)
-
-            edge_list = edges_to_predict.t().tolist()
-            scores = [len(list(nx.common_neighbors(nx_graph, u, v))) for u, v in edge_list]
-            
-            return torch.tensor(scores, dtype=torch.float)
-
-        except Exception as e:
-            print(f"Error in Common Neighbors prediction: {e}")
-            return torch.zeros(edges_to_predict.size(1), dtype=torch.float)
+        nx_graph = to_networkx(graph_data, to_undirected=True)
+        edge_list = edges_to_predict.t().tolist()
+        scores = [len(list(nx.common_neighbors(nx_graph, u, v))) for u, v in edge_list]
+        return torch.tensor(scores, dtype=torch.float)

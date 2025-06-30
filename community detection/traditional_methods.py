@@ -2,7 +2,7 @@ import torch
 import networkx as nx
 import community as co 
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, fowlkes_mallows_score
-from torch_geometric.datasets import Planetoid, KarateClub # WebKB is no longer needed if Cornell is removed
+from torch_geometric.datasets import Planetoid, KarateClub 
 from torch_geometric.utils import to_networkx
 
 from torch_geometric.data import Data 
@@ -13,10 +13,12 @@ import random
 import os 
 import requests 
 
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+
 from deep_learning_methods import run_gnn, GCN, GraphSage 
 
 warnings.filterwarnings("ignore")
-
 
 def get_cora_subgraph_pyg(full_data_pyg, num_nodes_subgraph=150):
     """
@@ -146,7 +148,7 @@ def load_and_prepare_dataset(dataset_name):
     return G, ground_truth, data_pyg 
 
 
-# Metric Calculation Functions 
+# Metric Calculation Functions
 
 def calculate_internal_metrics(G, partition):
     """
@@ -193,7 +195,7 @@ def calculate_external_metrics(ground_truth, predicted_partition):
     fms = fowlkes_mallows_score(ground_truth, predicted_labels)
     return nmi, ari, fms
 
-# Community Detection Algorithms
+# Community Detection Algorithms - Traditional Methods
 
 def run_louvain(G):
     """Runs the Louvain community detection algorithm."""
@@ -259,21 +261,115 @@ def run_label_propagation(G):
     return partition
 
 
-# Main Execution Loop
+# Plotting Functions for Visualization 
+
+def plot_graph_communities(G, partition, title, ground_truth_labels=None, figsize=(8, 8)):
+    plt.figure(figsize=figsize)
+    
+    node_ids = list(G.nodes())
+    valid_partition_nodes = [node for node in node_ids if node in partition]
+    
+    if not valid_partition_nodes:
+        print(f"Warning: No valid nodes in partition for plotting {title}. Skipping graph plot.")
+        plt.close()
+        return
+
+    unique_communities = sorted(list(set(partition[node] for node in valid_partition_nodes)))
+    colors = plt.cm.get_cmap('viridis', max(len(unique_communities), 1)) 
+    
+    node_colors = []
+    for node_id in node_ids:
+        if node_id in partition:
+            try:
+                color_idx = unique_communities.index(partition[node_id])
+                node_colors.append(colors(color_idx))
+            except ValueError:
+                node_colors.append('lightgray') 
+        else:
+            node_colors.append('lightgray') 
+
+    pos = nx.spring_layout(G, seed=42) 
+    
+    with_labels = G.number_of_nodes() <= 50 
+
+    nx.draw_networkx(G, 
+                     pos=pos, 
+                     with_labels=with_labels, 
+                     node_color=node_colors, 
+                     node_size=300 if with_labels else 100, 
+                     font_size=8, 
+                     font_color='black',
+                     edge_color='gray',
+                     width=0.5)
+    
+    plt.title(title)
+    plt.axis('off')
+    plt.tight_layout()
+    os.makedirs('plots', exist_ok=True)
+    plt.savefig(f"plots/{title.replace(' ', '_').replace(':', '').replace('/', '_')}_graph.png", dpi=300)
+    plt.close()
+
+def plot_embeddings_2d(embeddings, labels, title, figsize=(8, 8)):
+    plt.figure(figsize=figsize)
+    
+    if len(embeddings) <= 1:
+        print(f"Warning: Not enough embeddings for t-SNE in {title}. Skipping embedding plot.")
+        plt.close()
+        return
+
+    perplexity_val = min(30, len(embeddings) - 1)
+    if perplexity_val < 1: 
+        print(f"Warning: Perplexity value ({perplexity_val}) is too low for t-SNE in {title}. Skipping embedding plot.")
+        plt.close()
+        return
+
+    tsne = TSNE(n_components=2, random_state=42, perplexity=perplexity_val, max_iter=1000) 
+    embeddings_2d = tsne.fit_transform(embeddings)
+
+    labels_int = labels.astype(int) if isinstance(labels, np.ndarray) else np.array(labels).astype(int)
+    unique_labels = sorted(list(np.unique(labels_int)))
+    colors = plt.cm.get_cmap('viridis', max(len(unique_labels), 1)) 
+    
+    legend_handles = []
+    for i, label in enumerate(unique_labels):
+        indices = labels_int == label
+        if np.any(indices):
+            plt.scatter(embeddings_2d[indices, 0], embeddings_2d[indices, 1], 
+                        color=colors(i), label=f'Community {label}', alpha=0.7, s=50) 
+            legend_handles.append(plt.Line2D([0], [0], marker='o', color='w', 
+                                             markerfacecolor=colors(i), markersize=10, label=f'Community {label}'))
+    
+    plt.title(title)
+    if len(legend_handles) > 0:
+        plt.legend(handles=legend_handles, loc='best', fontsize='small', bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+    plt.grid(True)
+    plt.tight_layout(rect=[0, 0, 0.85, 1]) 
+    os.makedirs('plots', exist_ok=True)
+    plt.savefig(f"plots/{title.replace(' ', '_').replace(':', '').replace('/', '_')}_embeddings.png", dpi=300)
+    plt.close()
+
+
+# Main Execution Loo
 
 datasets_to_test = [
-    'KarateClub',    # Small (34 nodes) - has GT
-    'Cora_Subset',   # Small-Medium (approx. 150 nodes) - has GT, G-N feasible
-    'Cora',          # Medium (2708 nodes) - has GT
-    'PubMed'         # Large (19717 nodes) - has GT
+    'KarateClub',    # Small (34 nodes) - has GT, good for graph plot & embeddings
+    'Cora_Subset',   # Small-Medium (approx. 150 nodes) - has GT, G-N feasible, good for embeddings
+    'Cora',          # Medium (2708 nodes) - has GT, good for embeddings (but computationally heavier)
+    'PubMed'         # Large (19717 nodes) - has GT, good for embeddings (but computationally heavier)
 ]
+
+GRAPH_PLOT_DATASETS = ['KarateClub', 'Cora_Subset', 'Cora', 'PubMed'] 
+
+EMBEDDING_PLOT_DATASETS = ['KarateClub', 'Cora_Subset', 'Cora', 'PubMed'] 
 
 results = []
 
 for dataset_name in datasets_to_test:
     G, ground_truth, data_pyg = load_and_prepare_dataset(dataset_name)
 
-    # Traditional Algorithms
+    partitions_for_plotting = {}
+    embeddings_for_plotting_data = {} 
+
     traditional_algorithms = {
         "Louvain": run_louvain,
         "Label Propagation": run_label_propagation,
@@ -320,6 +416,10 @@ for dataset_name in datasets_to_test:
             }
             results.append(row)
             print(f"    Completed {algo_name}.")
+
+            if dataset_name in GRAPH_PLOT_DATASETS:
+                partitions_for_plotting[algo_name] = partition
+
         except Exception as e:
             print(f"    Error running {algo_name} on {dataset_name}: {e}")
             row = {
@@ -341,6 +441,7 @@ for dataset_name in datasets_to_test:
 
     for dl_algo_name, dl_model_class in dl_algorithms.items():
         print(f"  - Running {dl_algo_name}...")
+        
         if (data_pyg is not None and hasattr(data_pyg, 'x') and hasattr(data_pyg, 'edge_index') and 
             hasattr(data_pyg, 'y') and hasattr(data_pyg, 'train_mask') and data_pyg.train_mask.any()): 
             try:
@@ -355,7 +456,7 @@ for dataset_name in datasets_to_test:
                 if not isinstance(num_classes_for_gnn, int) or num_classes_for_gnn <= 0:
                     raise ValueError(f"Failed to determine valid num_classes ({num_classes_for_gnn}) for GNN on {dataset_name}.")
                 
-                gnn_partition = run_gnn(dl_model_class, data_pyg, num_classes=num_classes_for_gnn) 
+                gnn_partition, gnn_embeddings = run_gnn(dl_model_class, data_pyg, num_classes=num_classes_for_gnn) 
                 
                 num_communities = len(set(gnn_partition.values()))
                 modularity, avg_conductance = calculate_internal_metrics(G, gnn_partition) 
@@ -379,6 +480,14 @@ for dataset_name in datasets_to_test:
                 }
                 results.append(row)
                 print(f"    Completed {dl_algo_name}.")
+
+                if dataset_name in GRAPH_PLOT_DATASETS:
+                    partitions_for_plotting[dl_algo_name] = gnn_partition
+                if dataset_name in EMBEDDING_PLOT_DATASETS:
+                    predicted_labels_array_for_plot = np.array([gnn_partition[i] for i in range(G.number_of_nodes())])
+                    embeddings_for_plotting_data[dl_algo_name] = (gnn_embeddings, predicted_labels_array_for_plot)
+
+
             except Exception as e:
                 print(f"    Error running {dl_algo_name} on {dataset_name}: {e}")
                 row = {
@@ -391,7 +500,7 @@ for dataset_name in datasets_to_test:
                     'ARI': np.nan,
                     'Fowlkes_Mallows': np.nan
                 }
-            results.append(row)
+                results.append(row)
         else:
             print(f"    Skipping {dl_algo_name} for {dataset_name}: Missing required PyG Data attributes (x, edge_index, y, train_mask).")
             row = {
@@ -405,12 +514,36 @@ for dataset_name in datasets_to_test:
                     'Fowlkes_Mallows': np.nan
                 }
             results.append(row)
+    
+    if dataset_name in GRAPH_PLOT_DATASETS:
+        if ground_truth is not None:
+            gt_partition = {i: ground_truth[i] for i in range(len(ground_truth))}
+            plot_graph_communities(G, gt_partition, f"{dataset_name} - Ground Truth Communities")
 
+        for algo_name, partition in partitions_for_plotting.items():
+            plot_graph_communities(G, partition, f"{dataset_name} - {algo_name} Communities")
+    
+    if dataset_name in EMBEDDING_PLOT_DATASETS:
+        if ground_truth is not None and embeddings_for_plotting_data: 
+            sample_embeddings_tuple = None
+            if "GNN (GCN)" in embeddings_for_plotting_data:
+                sample_embeddings_tuple = embeddings_for_plotting_data["GNN (GCN)"]
+            elif "GNN (GraphSage)" in embeddings_for_plotting_data: 
+                sample_embeddings_tuple = embeddings_for_plotting_data["GNN (GraphSage)"]
+            
+            if sample_embeddings_tuple is not None:
+                sample_embeddings = sample_embeddings_tuple[0] 
+                plot_embeddings_2d(sample_embeddings, ground_truth, f"{dataset_name} - GNN Embeddings (Ground Truth)")
 
+        for algo_name, (embeddings, predicted_labels_array) in embeddings_for_plotting_data.items():
+            plot_embeddings_2d(embeddings, predicted_labels_array, f"{dataset_name} - {algo_name} (Predicted Communities)")
+
+# Display results in a DataFrame
 results_df = pd.DataFrame(results)
 print("\n--- Summary of Community Detection Results ---")
 print(results_df.round(4).to_markdown(index=False))
 
+# Save results as a markdown table
 markdown_table = results_df.round(4).to_markdown(index=False)
 with open("community_detection_results.md", "w", encoding="utf-8") as f:
     f.write("# Summary of Community Detection Results\n\n")

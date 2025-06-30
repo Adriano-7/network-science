@@ -3,14 +3,8 @@ import numpy as np
 from math import log
 
 class HeuristicFeatureExtractor:
-    """
-    Calculates heuristic-based features for link prediction.
-    This class can be shared across multiple traditional ML models.
-    """
     def calculate_features(self, G: nx.Graph, edges: list) -> np.ndarray:
         all_features = []
-        
-        # Pre-calculate degrees for efficiency
         degrees = dict(G.degree())
 
         for u, v in edges:

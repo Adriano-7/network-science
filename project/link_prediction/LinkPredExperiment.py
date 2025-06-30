@@ -38,44 +38,49 @@ def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, 
     print(f"Finished experiment for model: {model.__class__.__name__}")
 
 
-def run_experiments(models_to_run: list, datasets_to_use: list, seed: int = 42):
-    for dataset_name in datasets_to_use:
-        dataset_manager = DatasetManager(dataset_name=dataset_name, seed=seed)
-        evaluator = Evaluator(dataset_name=dataset_manager.dataset_name)
-        
-        print("\n" + "="*50)
-        print(f"Dataset loaded: {dataset_manager.dataset_name}")
-        print(f"Total nodes: {dataset_manager.train_data.num_nodes}")
-        print(f"Node features: {dataset_manager.train_data.num_features}")
-        print(f"Train edges (for message passing): {dataset_manager.train_data.edge_index.size(1)}")
-        print(f"Test edges (pos+neg): {dataset_manager.all_test_edges.size(1)}")
-        print("="*50)
-
-        for model in models_to_run:
-            run_experiment(model, dataset_manager, evaluator)
+def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
+    print("\n" + "#"*60)
+    print(f"LOADING DATASET: {dataset_name}")
+    print("#"*60)
+    dataset_manager = DatasetManager(dataset_name=dataset_name, seed=seed)
+    evaluator = Evaluator(dataset_name=dataset_manager.dataset_name)
     
+    num_node_features = dataset_manager.train_data.num_features
 
-def main():
-    print("Initializing experiment suite") 
+    print("\n" + "="*50)
+    print(f"Dataset loaded: {dataset_manager.dataset_name}")
+    print(f"Total nodes: {dataset_manager.train_data.num_nodes}")
+    print(f"Node features: {num_node_features}")
+    print(f"Train edges (for message passing): {dataset_manager.train_data.edge_index.size(1)}")
+    print(f"Test edges (pos+neg): {dataset_manager.all_test_edges.size(1)}")
+    print("="*50)
 
     models_to_run = [
-        # CommonNeighborsModel(),
-        # JaccardIndexModel(),
-        # AdamicAdarModel(),
-        # PreferentialAttachmentModel(),
-        # DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=42)
-        # LogisticRegressionModel(),
-        # gcn_model,
-        # graphsage_model,
+        CommonNeighborsModel(),
+        JaccardIndexModel(),
+        AdamicAdarModel(),
+        PreferentialAttachmentModel(),
+        DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=seed),
+        LogisticRegressionModel(random_state=seed),
+        #GCNModel(in_channels=num_node_features, epochs=200, patience=20),
+        #GraphSAGEModel(in_channels=num_node_features, epochs=200, patience=20),
     ]
+
+    for model in models_to_run:
+        run_experiment(model, dataset_manager, evaluator)
+
+def main():
+    print("Initializing experiment suite")
 
     datasets_to_test = [
-        'Twitch-DE', 
-        'Twitch-EN', 
-        'Cora'
+        'Cora',
+        'Twitch-DE',
+        'Twitch-EN',
     ]
+    
+    for dataset in datasets_to_test:
+        run_experiments_on_dataset(dataset, seed=42)
 
-    run_experiments(models_to_run, datasets_to_test, seed=42)
     print("\nAll experiments finished successfully.")
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 from sklearn.metrics import roc_auc_score
 from ..LinkPredModel import LinkPredictionModel
+import copy
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -41,13 +42,16 @@ class MLPDecoder(torch.nn.Module):
         return x.squeeze()
 
 class GCNModel(LinkPredictionModel):
-    def __init__(self, in_channels: int, hidden_channels: int = 128, emb_dim: int = 64, 
-                 epochs: int = 100, lr: float = 0.01, dropout: float = 0.5):
+    def __init__(self, in_channels: int, hidden_channels: int = 128, emb_dim: int = 64,
+                 epochs: int = 200, lr: float = 0.01, dropout: float = 0.5,
+                 patience: int = 20):
         
         print("Initialized GCN Link Prediction Model.")
         print(f"Using device: {device}")
         self.epochs = epochs
-        
+        self.patience = patience
+        self.best_val_auc = 0
+        self.best_model_state = None        
         self.model = torch.nn.Module()
         self.model.encoder = GCNEncoder(in_channels, hidden_channels, emb_dim, dropout)
         self.model.decoder = MLPDecoder(emb_dim, hidden_channels, 1, dropout)
@@ -57,10 +61,12 @@ class GCNModel(LinkPredictionModel):
         self.criterion = torch.nn.BCEWithLogitsLoss()
 
     def train(self, train_data: Data, val_data: Data):
-        print("Starting GCN training...")
+        print("Starting GCN training with early stopping...")
         train_data = train_data.to(device)
         val_data = val_data.to(device)
         
+        patience_counter = 0
+
         for epoch in range(1, self.epochs + 1):
             self.model.train()
             self.optimizer.zero_grad()
@@ -79,6 +85,24 @@ class GCNModel(LinkPredictionModel):
             if epoch % 10 == 0:
                 val_auc = self.test_on_data(val_data)
                 print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val AUC: {val_auc:.4f}')
+
+                # --- Early stopping logic ---
+                if val_auc > self.best_val_auc:
+                    self.best_val_auc = val_auc
+                    self.best_model_state = copy.deepcopy(self.model.state_dict())
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                
+                if patience_counter >= self.patience:
+                    print(f"Early stopping at epoch {epoch} due to no improvement in Val AUC for {self.patience} checks.")
+                    break
+        
+        if self.best_model_state:
+            print(f"Training finished. Loading best model with Val AUC: {self.best_val_auc:.4f}")
+            self.model.load_state_dict(self.best_model_state)
+        else:
+            print("Warning: Training finished, but no best model was saved. Using the last state.")
 
     @torch.no_grad()
     def test_on_data(self, data: Data) -> float:

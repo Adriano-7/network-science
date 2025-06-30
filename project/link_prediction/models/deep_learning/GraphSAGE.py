@@ -4,6 +4,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import SAGEConv
 from sklearn.metrics import roc_auc_score
 from ..LinkPredModel import LinkPredictionModel
+import copy
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -11,11 +12,6 @@ else:
     device = torch.device("cpu")
 
 class GraphSAGEEncoder(torch.nn.Module):
-    """
-    GraphSAGE-based encoder.
-    GraphSAGE is an inductive model that learns aggregator functions, allowing it to
-    generate embeddings for nodes not seen during training[cite: 42, 44, 45].
-    """
     def __init__(self, in_channels, hidden_channels, out_channels, dropout=0.5):
         super().__init__()
         self.dropout = dropout
@@ -29,6 +25,7 @@ class GraphSAGEEncoder(torch.nn.Module):
         return x
 
 class MLPDecoder(torch.nn.Module):
+    # This class is unchanged
     def __init__(self, in_channels, hidden_channels, out_channels=1, dropout=0.5):
         super().__init__()
         self.lin1 = torch.nn.Linear(2 * in_channels, hidden_channels)
@@ -45,13 +42,16 @@ class MLPDecoder(torch.nn.Module):
         return x.squeeze()
 
 class GraphSAGEModel(LinkPredictionModel):
-    def __init__(self, in_channels: int, hidden_channels: int = 128, out_channels: int = 64, 
-                 epochs: int = 100, lr: float = 0.01, dropout: float = 0.5):
+    def __init__(self, in_channels: int, hidden_channels: int = 128, out_channels: int = 64,
+                 epochs: int = 200, lr: float = 0.01, dropout: float = 0.5,
+                 patience: int = 20):
         
         print("Initialized GraphSAGE Link Prediction Model.")
         print(f"Using device: {device}")
         self.epochs = epochs
-        
+        self.patience = patience
+        self.best_val_auc = 0
+        self.best_model_state = None        
         self.model = torch.nn.Module()
         self.model.encoder = GraphSAGEEncoder(in_channels, hidden_channels, out_channels, dropout)
         self.model.decoder = MLPDecoder(out_channels, hidden_channels, 1, dropout)
@@ -61,10 +61,12 @@ class GraphSAGEModel(LinkPredictionModel):
         self.criterion = torch.nn.BCEWithLogitsLoss()
 
     def train(self, train_data: Data, val_data: Data):
-        print("Starting GraphSAGE training...")
+        print("Starting GraphSAGE training with early stopping...")
         train_data = train_data.to(device)
         val_data = val_data.to(device)
         
+        patience_counter = 0
+
         for epoch in range(1, self.epochs + 1):
             self.model.train()
             self.optimizer.zero_grad()
@@ -83,6 +85,25 @@ class GraphSAGEModel(LinkPredictionModel):
             if epoch % 10 == 0:
                 val_auc = self.test_on_data(val_data)
                 print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val AUC: {val_auc:.4f}')
+
+                # --- Early stopping logic ---
+                if val_auc > self.best_val_auc:
+                    self.best_val_auc = val_auc
+                    self.best_model_state = copy.deepcopy(self.model.state_dict())
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                
+                if patience_counter >= self.patience:
+                    print(f"Early stopping at epoch {epoch} due to no improvement in Val AUC for {self.patience} checks.")
+                    break
+        
+        if self.best_model_state:
+            print(f"Training finished. Loading best model with Val AUC: {self.best_val_auc:.4f}")
+            self.model.load_state_dict(self.best_model_state)
+        else:
+            print("Warning: Training finished, but no best model was saved. Using the last state.")
+
 
     @torch.no_grad()
     def test_on_data(self, data: Data) -> float:

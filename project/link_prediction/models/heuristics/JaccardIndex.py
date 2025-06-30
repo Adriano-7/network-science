@@ -13,7 +13,9 @@ class JaccardIndexModel(LinkPredictionModel):
         pass
 
     def predict(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
-        nx_graph = to_networkx(graph_data, to_undirected=True)
+        print("Building graph from training edges only to prevent data leakage...")
+        graph_for_prediction = Data(edge_index=graph_data.edge_index, num_nodes=graph_data.num_nodes)
+        nx_graph = to_networkx(graph_for_prediction, to_undirected=True)
         edge_list = edges_to_predict.t().tolist()
         predictions = nx.jaccard_coefficient(nx_graph, edge_list)
         scores = [p for _, _, p in predictions]

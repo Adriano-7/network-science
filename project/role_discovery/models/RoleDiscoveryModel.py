@@ -1,4 +1,6 @@
+# project/role_discovery/models/RoleDiscoveryModel.py
 from abc import ABC, abstractmethod
+from typing import Tuple
 import torch
 from torch_geometric.data import Data
 
@@ -7,12 +9,12 @@ class RoleDiscoveryModel(ABC):
 
     def train(self, graph_data: Data):
         """
-        Models that do not require training can just pass.
+        Optional training step for models that require it.
         """
         pass
 
     @abstractmethod
-    def predict(self, graph_data: Data, k: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def predict(self, graph_data: Data, k: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Assigns each node in the graph to one of k roles.
         """

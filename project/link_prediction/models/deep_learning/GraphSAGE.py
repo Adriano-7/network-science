@@ -42,7 +42,7 @@ class MLPDecoder(torch.nn.Module):
         return x.squeeze()
 
 class GraphSAGEModel(LinkPredictionModel):
-    def __init__(self, in_channels: int, hidden_channels: int = 128, out_channels: int = 64,
+    def __init__(self, in_channels: int, hidden_channels: int = 128, emb_dim: int = 64,
                  epochs: int = 200, lr: float = 0.01, dropout: float = 0.5,
                  patience: int = 20):
         
@@ -53,8 +53,8 @@ class GraphSAGEModel(LinkPredictionModel):
         self.best_val_auc = 0
         self.best_model_state = None        
         self.model = torch.nn.Module()
-        self.model.encoder = GraphSAGEEncoder(in_channels, hidden_channels, out_channels, dropout)
-        self.model.decoder = MLPDecoder(out_channels, hidden_channels, 1, dropout)
+        self.model.encoder = GraphSAGEEncoder(in_channels, hidden_channels, emb_dim, dropout)
+        self.model.decoder = MLPDecoder(emb_dim, hidden_channels, 1, dropout)
         self.model.to(device)
 
         self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=lr)

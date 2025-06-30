@@ -56,14 +56,14 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
     print("="*50)
 
     models_to_run = [
-        CommonNeighborsModel(),
-        JaccardIndexModel(),
-        AdamicAdarModel(),
-        PreferentialAttachmentModel(),
-        DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=seed),
-        LogisticRegressionModel(random_state=seed),
-        #GCNModel(in_channels=num_node_features, epochs=200, patience=20),
-        #GraphSAGEModel(in_channels=num_node_features, epochs=200, patience=20),
+        #CommonNeighborsModel(),
+        #JaccardIndexModel(),
+        #AdamicAdarModel(),
+        #PreferentialAttachmentModel(),
+        #DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=seed),
+        #LogisticRegressionModel(random_state=seed),
+        #GCNModel(in_channels=num_node_features, epochs=500, patience=20, dropout=0.5, hidden_channels=128, emb_dim=64),
+        #GraphSAGEModel(in_channels=num_node_features, epochs=500, patience=20, dropout=0.5, hidden_channels=128, emb_dim=64)
     ]
 
     for model in models_to_run:

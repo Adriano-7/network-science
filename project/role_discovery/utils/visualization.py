@@ -17,14 +17,14 @@ def visualize_roles_tsne(embeddings: torch.Tensor, role_labels: torch.Tensor, ti
     plt.figure(figsize=(12, 10))
     unique_labels = np.unique(labels_np)
     
-    colors = plt.get_cmap('viridis', len(unique_labels))
+    colors = plt.get_cmap('plasma', len(unique_labels))
     
     for i, label in enumerate(unique_labels):
         idx = (labels_np == label)
         plt.scatter(embeddings_2d[idx, 0], embeddings_2d[idx, 1], 
                     color=colors(i), label=f'Role {label}', alpha=0.8, s=50)
             
-    plt.title(f"{title}\nSilhouette Score: {score:.4f}", fontsize=18, pad=20)
+    plt.title(f"{title}\nSilhouette Score: {score:.4f} (Higher is Better)", fontsize=18, pad=20)
     plt.xlabel("t-SNE Dimension 1", fontsize=14)
     plt.ylabel("t-SNE Dimension 2", fontsize=14)
     plt.legend(title='Discovered Roles', fontsize=12, title_fontsize=14)

@@ -18,7 +18,7 @@ class FeatureBasedRoles(RoleDiscoveryModel):
         if self.node_features is not None:
             return self.node_features
 
-        print("Extracting a comprehensive set of node-level structural features...")
+        print("Extracting a set of node-level structural features...")
         
         G_directed = to_networkx(data, to_undirected=False)
         G_undirected = to_networkx(data, to_undirected=True)
@@ -37,7 +37,7 @@ class FeatureBasedRoles(RoleDiscoveryModel):
         # Local Structure Measures
         clustering_coefficient = nx.clustering(G_undirected)
         
-        #  Directed Graph Features (if applicable)
+        #  Directed Graph Features 
         if data.is_directed():
             in_degree_centrality = {n: d for n, d in G_directed.in_degree(weight=None)}
             out_degree_centrality = {n: d for n, d in G_directed.out_degree(weight=None)}

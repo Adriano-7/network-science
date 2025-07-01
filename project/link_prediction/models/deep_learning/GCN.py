@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
-from sklearn.metrics import roc_auc_score
 from ..LinkPredModel import LinkPredictionModel
 import copy
 
@@ -13,7 +12,7 @@ else:
 
 
 class GCNEncoder(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, emb_dim, dropout=0.5):
+    def __init__(self, in_channels, hidden_channels, emb_dim, dropout):
         super().__init__()
         self.dropout = dropout
         self.conv1 = GCNConv(in_channels, hidden_channels)
@@ -25,43 +24,32 @@ class GCNEncoder(torch.nn.Module):
         x = self.conv2(x, edge_index)
         return x
 
-class MLPDecoder(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels=1, dropout=0.5):
-        super().__init__()
-        self.lin1 = torch.nn.Linear(2 * in_channels, hidden_channels)
-        self.lin2 = torch.nn.Linear(hidden_channels, out_channels)
-        self.dropout = dropout
-
+class DotProductDecoder(torch.nn.Module):
     def forward(self, z, edge_label_index):
         z_src = z[edge_label_index[0]]
         z_dst = z[edge_label_index[1]]
-        x = torch.cat([z_src, z_dst], dim=-1)
-        x = self.lin1(x).relu()
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.lin2(x)
-        return x.squeeze()
+        return (z_src * z_dst).sum(dim=-1)
 
 class GCNModel(LinkPredictionModel):
-    def __init__(self, in_channels: int, hidden_channels: int = 128, emb_dim: int = 64,
-                 epochs: int = 200, lr: float = 0.01, dropout: float = 0.5,
-                 patience: int = 20):
+    def __init__(self, in_channels: int, hidden_channels: int, emb_dim: int,
+                 epochs: int, lr: float, dropout: float, patience: int):
         
         print("Initialized GCN Link Prediction Model.")
         print(f"Using device: {device}")
         self.epochs = epochs
         self.patience = patience
-        self.best_val_auc = 0
-        self.best_model_state = None        
+        self.best_val_mrr = 0
+        self.best_model_state = None       
         self.model = torch.nn.Module()
         self.model.encoder = GCNEncoder(in_channels, hidden_channels, emb_dim, dropout)
-        self.model.decoder = MLPDecoder(emb_dim, hidden_channels, 1, dropout)
+        self.model.decoder = DotProductDecoder()
         self.model.to(device)
 
         self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=lr)
         self.criterion = torch.nn.BCEWithLogitsLoss()
 
     def train(self, train_data: Data, val_data: Data):
-        print("Starting GCN training with early stopping...")
+        print("Starting GCN training with early stopping based on Val MRR...")
         train_data = train_data.to(device)
         val_data = val_data.to(device)
         
@@ -83,35 +71,50 @@ class GCNModel(LinkPredictionModel):
             self.optimizer.step()
 
             if epoch % 10 == 0:
-                val_auc = self.test_on_data(val_data)
-                print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val AUC: {val_auc:.4f}')
+                val_mrr = self._calculate_mrr_for_validation(train_data, val_data)
+                print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val MRR: {val_mrr:.4f}')
 
-                # --- Early stopping logic ---
-                if val_auc > self.best_val_auc:
-                    self.best_val_auc = val_auc
+                # --- Early stopping logic based on MRR ---
+                if val_mrr > self.best_val_mrr:
+                    self.best_val_mrr = val_mrr
                     self.best_model_state = copy.deepcopy(self.model.state_dict())
                     patience_counter = 0
                 else:
                     patience_counter += 1
                 
                 if patience_counter >= self.patience:
-                    print(f"Early stopping at epoch {epoch} due to no improvement in Val AUC for {self.patience} checks.")
+                    print(f"Early stopping at epoch {epoch} due to no improvement in Val MRR for {self.patience} checks.")
                     break
         
         if self.best_model_state:
-            print(f"Training finished. Loading best model with Val AUC: {self.best_val_auc:.4f}")
+            print(f"Training finished. Loading best model with Val MRR: {self.best_val_mrr:.4f}")
             self.model.load_state_dict(self.best_model_state)
         else:
             print("Warning: Training finished, but no best model was saved. Using the last state.")
 
     @torch.no_grad()
-    def test_on_data(self, data: Data) -> float:
+    def _calculate_mrr_for_validation(self, train_data_for_emb: Data, val_data_to_eval: Data) -> float:
         self.model.eval()
-        z = self.model.encoder(data.x, data.edge_index)
-        val_edges = torch.cat([data.pos_edge_label_index, data.neg_edge_label_index], dim=-1)
-        val_labels = torch.cat([data.pos_edge_label, data.neg_edge_label], dim=0)
-        out = self.model.decoder(z, val_edges).sigmoid()
-        return roc_auc_score(val_labels.cpu().numpy(), out.cpu().numpy())
+        z = self.model.encoder(train_data_for_emb.x, train_data_for_emb.edge_index)
+        
+        val_edges = torch.cat([val_data_to_eval.pos_edge_label_index, val_data_to_eval.neg_edge_label_index], dim=-1)
+        val_labels = torch.cat([val_data_to_eval.pos_edge_label, val_data_to_eval.neg_edge_label], dim=0)
+        
+        scores = self.model.decoder(z, val_edges).sigmoid()
+
+        y_true = val_labels.cpu()
+        y_pred = scores.cpu()
+        
+        pos_scores = y_pred[y_true == 1]
+        neg_scores = y_pred[y_true == 0]
+
+        if pos_scores.numel() == 0 or neg_scores.numel() == 0:
+            return 0.0
+
+        ranks = (pos_scores.view(-1, 1) <= neg_scores.view(1, -1)).float().sum(dim=1) + 1
+        mrr = (1.0 / ranks).mean().item()
+        
+        return mrr
 
     def predict_edges(self, graph_data: Data, edges_to_predict: torch.Tensor) -> torch.Tensor:
         print("Generating predictions with trained GCN...")

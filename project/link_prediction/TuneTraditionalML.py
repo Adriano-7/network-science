@@ -139,7 +139,7 @@ def main(dataset_name: str):
         # 'DecisionTree', 
         # 'LogisticRegression', 
         # 'RandomForest',
-        'KNN'
+        # 'KNN'
     ]
 
     for model_name in models_to_tune:
@@ -166,6 +166,11 @@ def main(dataset_name: str):
     print("All traditional ML tuning processes finished successfully.")
 
 if __name__ == '__main__':
-    datasets = ['Cora', 'Citeseer', 'Twitch-EN', 'Twitch-DE']
+    datasets = [
+        # 'Cora', 
+        # 'Citeseer', 
+        # 'Twitch-EN', 
+        # 'Twitch-DE'
+    ]
     for dataset in datasets:
         main(dataset)

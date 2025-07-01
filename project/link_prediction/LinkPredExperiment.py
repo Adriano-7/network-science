@@ -92,17 +92,17 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         in_channels=num_node_features,
         epochs=500,
         patience=50,
-        dropout=0.50,
-        hidden_channels=128,
+        dropout=0.2,
+        hidden_channels=64,
         emb_dim=32,
-        lr=0.005,
+        lr=0.007,
     )
     graphsage = GraphSAGEModel1(
         in_channels=num_node_features,
         epochs=500,
         patience=50,
-        dropout=0.31,
-        hidden_channels=128,
+        dropout=0.25,
+        hidden_channels=256,
         emb_dim=128,
         lr=0.001,
     )
@@ -116,8 +116,8 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         # log_reg,
         # random_forest,
         # knn,
-        gcn,
-        graphsage,
+        # gcn,
+        # graphsage,
     ]
 
     for model in models_to_run:
@@ -130,7 +130,7 @@ def main():
         # 'Cora',
         # 'Citeseer',
         # 'Twitch-EN',
-        'Twitch-DE',
+        # 'Twitch-DE',
     ]
     
     for dataset in datasets_to_test:

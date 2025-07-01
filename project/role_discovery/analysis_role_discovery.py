@@ -285,6 +285,116 @@ plt.show()
 # 
 # * **Role 0 represents the "Periphery"**: These nodes are moderately insular, with a significant number of connections (54%) to other nodes within Role 0, forming local communities. They also connect extensively to the "connector" nodes of Role 1 (42%), which links them to the wider graph structure.
 
+# ## 3. Bridging Structure and Semantics: Case Study on Cora
+# 
+# So far, our analysis has been purely structural. For datasets with node labels, like Cora, we can take the analysis one step further and investigate whether the structurally-defined roles have a distinct **semantic meaning**. In the Cora dataset, nodes are research papers and the labels (`data.y`) represent the paper's subject area.
+# 
+# Our GNN models discovered roles using only the graph's structure (node degrees), without any knowledge of the paper subjects.
+# 
+# > Does a node's structural role correlate with its academic field?
+# 
+# We will use the best performing model for Cora, `GNN_Embedder_DGI` (k=3), to find out.
+
+# In[ ]:
+
+
+#1. Setup and Data Loading 
+import sys
+from torch_geometric.datasets import Planetoid
+import torch
+
+project_root = str(Path().resolve().parent)
+if project_root not in sys.path:
+    print(f"Adding project root to path: {project_root}")
+    sys.path.append(project_root)
+
+from role_discovery.models.DGIEmbedder import DGIEmbedder
+from role_discovery.utils.experiment_utils import clean_params
+
+cora_subject_names = {
+    0: 'Theory',
+    1: 'Reinforcement_Learning',
+    2: 'Genetic_Algorithms',
+    3: 'Neural_Networks',
+    4: 'Probabilistic_Methods',
+    5: 'Case_Based',
+    6: 'Rule_Learning'
+}
+
+dataset = Planetoid(root='/tmp/Cora', name='Cora')
+data = dataset[0]
+
+
+# In[ ]:
+
+
+# 2. Load the Best Model and Get Role Assignments 
+model_name = "GNN_Embedder_DGI"
+dataset_name = "Cora"
+best_k = 3
+
+tuning_results_path = RESULTS_DIR / dataset_name / "hyperparameter_tuning_results.csv"
+tuning_df = pd.read_csv(tuning_results_path)
+dgi_results = tuning_df[tuning_df['model_name'] == model_name]
+raw_dgi_params = dgi_results.iloc[0].to_dict()
+dgi_params = clean_params({k: v for k, v in raw_dgi_params.items() if k not in ['model_name', 'best_silhouette']})
+
+print(f"Loading best {model_name} with params: {dgi_params}")
+
+model = DGIEmbedder(
+    in_channels=data.num_features,
+    **dgi_params,
+    model_path=str(RESULTS_DIR / dataset_name / f"best_{model_name}_model.pt"),
+    force_retrain=False
+)
+
+embeddings, role_labels = model.predict(data, k=best_k)
+print(f"\nSuccessfully assigned {data.num_nodes} nodes to {best_k} roles.")
+
+
+# In[21]:
+
+
+# 3. Analyze and Visualize Subject Distribution per Role 
+semantic_df = pd.DataFrame({
+    'role_id': role_labels.numpy(),
+    'subject_id': data.y.numpy()
+})
+semantic_df['subject_name'] = semantic_df['subject_id'].map(cora_subject_names)
+
+crosstab = pd.crosstab(semantic_df['role_id'], semantic_df['subject_name'])
+crosstab_norm = crosstab.div(crosstab.sum(axis=1), axis=0)
+
+print("\n--- Subject Distribution within Each Structural Role ---")
+display(crosstab_norm.style.format("{:.2%}"))
+
+
+# Although the GNN model was only given the network structure, the roles it discovered correspond to distinct subject distributions.
+# 
+# Notably, Role 0 is predominantly composed of papers on Neural Networks, while Role 2 has a higher concentration of papers in Genetic Algorithms and Theory. This demonstrates that the model successfully identified that different academic fields create unique structural footprints within the citation graph
+
+# In[25]:
+
+
+fig, ax = plt.subplots(figsize=(12, 6))
+crosstab_norm.plot(
+    kind='bar',
+    stacked=True,
+    ax=ax,
+    cmap='rocket',
+    width=0.8
+)
+
+ax.set_title('Semantic Analysis: Paper Subject Distribution per Structural Role on Cora', fontsize=18, pad=15)
+ax.set_xlabel('Discovered Structural Role ID', fontsize=14)
+ax.set_ylabel('Proportion of Papers', fontsize=14)
+ax.tick_params(axis='x', rotation=0)
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.0%}'))
+plt.legend(title='Paper Subject', bbox_to_anchor=(1.02, 1), loc='upper left')
+plt.tight_layout(rect=[0, 0, 0.88, 1])
+plt.show()
+
+
 # ## 3\. Conclusions
 # 
 # The analysis yields several key conclusions:

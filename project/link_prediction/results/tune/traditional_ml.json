@@ -138,5 +138,49 @@
             "min_samples_leaf": 12,
             "criterion": "entropy"
         }
+    },
+    {
+        "timestamp": "2025-07-01 17:44:53",
+        "dataset": "Cora",
+        "model": "KNN",
+        "best_mrr_val": "0.0380",
+        "params": {
+            "n_neighbors": 44,
+            "weights": "uniform",
+            "metric": "euclidean"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 17:45:46",
+        "dataset": "Citeseer",
+        "model": "KNN",
+        "best_mrr_val": "0.1608",
+        "params": {
+            "n_neighbors": 32,
+            "weights": "uniform",
+            "metric": "manhattan"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 17:50:58",
+        "dataset": "Twitch-EN",
+        "model": "KNN",
+        "best_mrr_val": "0.0028",
+        "params": {
+            "n_neighbors": 50,
+            "weights": "uniform",
+            "metric": "minkowski"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 18:22:46",
+        "dataset": "Twitch-DE",
+        "model": "KNN",
+        "best_mrr_val": "0.0098",
+        "params": {
+            "n_neighbors": 49,
+            "weights": "uniform",
+            "metric": "euclidean"
+        }
     }
 ]

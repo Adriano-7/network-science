@@ -4,8 +4,10 @@ import torch
 import optuna
 from datetime import datetime
 from DatasetManager import DatasetManager
-from models.deep_learning.GCN import GCNModel
-from models.deep_learning.GraphSAGE import GraphSAGEModel
+from models.deep_learning.GCN1 import GCNModel1
+from models.deep_learning.GraphSAGE1 import GraphSAGEModel1
+from models.deep_learning.GCN2 import GCNModel2
+from models.deep_learning.GraphSAGE2 import GraphSAGEModel2
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -45,18 +47,18 @@ def create_objective(model_class, dataset_manager, num_node_features):
     def objective(trial: optuna.trial.Trial) -> float:
         params = {
             'lr': trial.suggest_float('lr', 1e-4, 1e-2, log=True),
-            'hidden_channels': trial.suggest_categorical('hidden_channels', [64, 128, 256]),
+            'hidden_channels': trial.suggest_categorical('hidden_channels', [16, 32, 64]),
             'emb_dim': trial.suggest_categorical('emb_dim', [32, 64, 128]),
             'dropout': trial.suggest_float('dropout', 0.2, 0.6),
         }
 
+        if 'GAT' in model_class.__name__:
+            params['heads'] = trial.suggest_categorical('heads', [4, 8])
+
         try:
             model = model_class(
                 in_channels=num_node_features,
-                hidden_channels=params['hidden_channels'],
-                emb_dim=params['emb_dim'],
-                dropout=params['dropout'],
-                lr=params['lr'],
+                **params,
                 epochs=200,
                 patience=20
             )
@@ -96,9 +98,9 @@ def save_tuning_results(dataset_name, model_name, best_trial, output_file):
     print(f"Best results for {model_name} on {dataset_name} saved to {output_file}")
 
 
-def main():
-    DATASET_TO_TUNE = 'Citeseer'  # Options: 'Cora', 'Twitch-DE', 'Twitch-EN'
-    NUM_TRIALS = 50
+def main(dataset_name):
+    DATASET_TO_TUNE = dataset_name
+    NUM_TRIALS = 25
 
     print(f"Starting hyperparameter tuning on the '{DATASET_TO_TUNE}' dataset.")
     print(f"Device: {device}")
@@ -108,8 +110,10 @@ def main():
     output_file = "results/tune/gnns.csv"
 
     models_to_tune = {
-        'GCNModel': GCNModel,
-        'GraphSAGEModel': GraphSAGEModel
+        # 'GCNModel1': GCNModel1,
+        # 'GraphSAGEModel1': GraphSAGEModel1,
+        # 'GCNModel2': GCNModel2,
+        # 'GraphSAGEModel2': GraphSAGEModel2,
     }
 
     for model_name, model_class in models_to_tune.items():
@@ -140,4 +144,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    datasets = [
+        # 'Cora', 
+        # 'Citeseer', 
+        # 'Twitch-EN', 
+        # 'Twitch-DE'
+    ]
+    for dataset in datasets:
+        main(dataset)

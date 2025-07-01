@@ -29,7 +29,7 @@ class DotProductDecoder(torch.nn.Module):
         z_dst = z[edge_label_index[1]]
         return (z_src * z_dst).sum(dim=-1)
 
-class GraphSAGEModel(LinkPredictionModel):
+class GraphSAGEModel2(LinkPredictionModel):
     def __init__(self, in_channels: int, hidden_channels: int, emb_dim: int,
                  epochs: int, lr: float, dropout: float, patience: int):
         

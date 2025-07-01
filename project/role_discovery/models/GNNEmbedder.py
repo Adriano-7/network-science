@@ -41,15 +41,12 @@ class GNNEmbedder(RoleDiscoveryModel):
     def train(self, graph_data: Data):
         print("Starting GAE training with validation and early stopping...")
 
-        # Use node degrees as features
         deg = degree(graph_data.edge_index[0], graph_data.num_nodes).view(-1, 1)
         
-        # Apply feature normalization
         transform = T.NormalizeFeatures()
         structural_data = Data(x=deg, edge_index=graph_data.edge_index)
         structural_data = transform(structural_data)
 
-        # Split data into training, validation, and test sets
         split_transform = T.RandomLinkSplit(
             num_val=self.val_ratio,
             num_test=self.test_ratio,
@@ -58,7 +55,6 @@ class GNNEmbedder(RoleDiscoveryModel):
         )
         train_data, val_data, test_data = split_transform(structural_data)
 
-        # Initialize the GAE model
         in_channels = train_data.num_features
         encoder = GCNEncoder(in_channels, self.hidden_channels, self.emb_dim)
         self.model = GAE(encoder)
@@ -114,7 +110,6 @@ class GNNEmbedder(RoleDiscoveryModel):
         else:
             print("Warning: Training finished, but no best model was saved. Using the last state.")
 
-        # Save the best model
         if best_model_state is not None:
             project_root = Path(__file__).resolve().parents[2]
             model_save_path = project_root / 'best_gae_model.pt'

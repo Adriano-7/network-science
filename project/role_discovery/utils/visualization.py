@@ -20,7 +20,7 @@ def visualize_roles_tsne(embeddings: torch.Tensor, role_labels: torch.Tensor, ti
     plt.figure(figsize=(12, 10))
     unique_labels = np.unique(labels_np)
     
-    colors = plt.get_cmap('rocket', len(unique_labels))
+    colors = plt.get_cmap('viridis', len(unique_labels))
     
     for i, label in enumerate(unique_labels):
         idx = (labels_np == label)

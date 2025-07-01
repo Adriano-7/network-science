@@ -26,7 +26,7 @@ def run_role_discovery_experiment(dataset_name: str):
 
     models_to_test = {
         "Feature-Based_Roles": FeatureBasedRoles(),
-        "GNN_Embedder_GAE": GNNEmbedder(hidden_channels=128, emb_dim=32, epochs=20000, lr=0.005)
+        "GNN_Embedder_GAE": GNNEmbedder(hidden_channels=128, emb_dim=32)
     }
 
     k_values = [3, 4, 5, 6, 7] 

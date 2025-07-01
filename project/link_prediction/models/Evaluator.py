@@ -7,9 +7,9 @@ from sklearn.metrics import roc_auc_score
 class Evaluator:
     def __init__(self, dataset_name: str):
         self.dataset_name = dataset_name
-        self.output_dir = f"results/{self.dataset_name}"
+        self.output_dir = f"results/datasets/"
         os.makedirs(self.output_dir, exist_ok=True)
-        self.results_path = os.path.join(self.output_dir, "evaluation_report.csv")
+        self.results_path = os.path.join(self.output_dir, f"{dataset_name}_metrics.csv")
 
     def _calculate_ranking_metrics(self, y_true, y_pred, K_values=None):
         if K_values is None:

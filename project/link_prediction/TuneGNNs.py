@@ -97,15 +97,15 @@ def save_tuning_results(dataset_name, model_name, best_trial, output_file):
 
 
 def main():
-    DATASET_TO_TUNE = 'Twitch-DE'  # Options: 'Cora', 'Twitch-DE', 'Twitch-EN', 'CiteSeer', 'PubMed'
-    NUM_TRIALS = 30
+    DATASET_TO_TUNE = 'Citeseer'  # Options: 'Cora', 'Twitch-DE', 'Twitch-EN'
+    NUM_TRIALS = 50
 
     print(f"Starting hyperparameter tuning on the '{DATASET_TO_TUNE}' dataset.")
     print(f"Device: {device}")
     
     dataset_manager = DatasetManager(dataset_name=DATASET_TO_TUNE, seed=42)
     num_node_features = dataset_manager.train_data.num_features
-    output_file = "results/tuning_results.csv"
+    output_file = "results/tune/gnns.csv"
 
     models_to_tune = {
         'GCNModel': GCNModel,

@@ -7,6 +7,7 @@ from models.heuristics.JaccardIndex import JaccardIndexModel
 from models.heuristics.PreferentialAttachment import PreferentialAttachmentModel
 from models.traditional_ml.DecisionTree import DecisionTreeModel
 from models.traditional_ml.LogisticRegression import LogisticRegressionModel
+from models.traditional_ml.RandomForest import RandomForestModel
 from models.deep_learning.GCN import GCNModel
 from models.deep_learning.GraphSAGE import GraphSAGEModel
 
@@ -55,15 +56,58 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
     print(f"Test edges (pos+neg): {dataset_manager.all_test_edges.size(1)}")
     print("="*50)
 
+    dec_tree = DecisionTreeModel(
+        max_depth=7,
+        min_samples_split=30,
+        min_samples_leaf=27,
+        criterion='gini',
+        random_state=seed
+    )
+    log_reg = LogisticRegressionModel(
+        C=0.0001,
+        penalty='l2',
+        solver='newton-cg',
+        random_state=seed
+    )
+    random_forest = RandomForestModel(
+        n_estimators=375,
+        max_depth=16,
+        min_samples_split=9,
+        min_samples_leaf=12,
+        criterion='entropy',
+        random_state=seed,
+        n_jobs=-1
+    )
+
+    gcn = GCNModel(
+        in_channels=num_node_features,
+        epochs=500,
+        patience=50,
+        dropout=0.36,
+        hidden_channels=256,
+        emb_dim=128,
+        lr=0.0002,
+    )
+    graphsage = GraphSAGEModel(
+        in_channels=num_node_features,
+        epochs=500,
+        patience=50,
+        dropout=0.44,
+        hidden_channels=256,
+        emb_dim=32,
+        lr=0.0002,
+    )
+
     models_to_run = [
-        #CommonNeighborsModel(),
-        #JaccardIndexModel(),
-        #AdamicAdarModel(),
-        #PreferentialAttachmentModel(),
-        #DecisionTreeModel(max_depth=10, min_samples_leaf=10, random_state=seed),
-        #LogisticRegressionModel(random_state=seed),
-        #GCNModel(in_channels=num_node_features, epochs=500, patience=20, dropout=0.5, hidden_channels=128, emb_dim=64),
-        #GraphSAGEModel(in_channels=num_node_features, epochs=500, patience=20, dropout=0.5, hidden_channels=128, emb_dim=64)
+        # CommonNeighborsModel(),
+        # JaccardIndexModel(),
+        # AdamicAdarModel(),
+        # PreferentialAttachmentModel(),
+        # dec_tree,
+        # log_reg,
+        # random_forest,
+        # gcn,
+        # graphsage,
     ]
 
     for model in models_to_run:
@@ -73,9 +117,10 @@ def main():
     print("Initializing experiment suite")
 
     datasets_to_test = [
-        'Cora',
-        'Twitch-DE',
-        'Twitch-EN',
+        #'Cora',
+        #'Citeseer',
+        #'Twitch-EN',
+        #'Twitch-DE',
     ]
     
     for dataset in datasets_to_test:

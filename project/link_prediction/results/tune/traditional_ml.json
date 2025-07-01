@@ -1,0 +1,142 @@
+[
+    {
+        "timestamp": "2025-07-01 13:00:44",
+        "dataset": "Cora",
+        "model": "DecisionTree",
+        "best_mrr_val": "0.2535",
+        "params": {
+            "criterion": "gini",
+            "max_depth": 5,
+            "min_samples_split": 15,
+            "min_samples_leaf": 5
+        }
+    },
+    {
+        "timestamp": "2025-07-01 13:01:27",
+        "dataset": "Cora",
+        "model": "LogisticRegression",
+        "best_mrr_val": "0.3019",
+        "params": {
+            "C": 0.00010162194607037462,
+            "solver": "newton-cg"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 13:02:44",
+        "dataset": "Cora",
+        "model": "RandomForest",
+        "best_mrr_val": "0.2729",
+        "params": {
+            "n_estimators": 275,
+            "max_depth": 41,
+            "min_samples_split": 2,
+            "min_samples_leaf": 12,
+            "criterion": "entropy"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 13:08:45",
+        "dataset": "Twitch-EN",
+        "model": "DecisionTree",
+        "best_mrr_val": "0.3046",
+        "params": {
+            "criterion": "entropy",
+            "max_depth": 7,
+            "min_samples_split": 20,
+            "min_samples_leaf": 4
+        }
+    },
+    {
+        "timestamp": "2025-07-01 13:13:39",
+        "dataset": "Twitch-EN",
+        "model": "LogisticRegression",
+        "best_mrr_val": "0.3064",
+        "params": {
+            "C": 0.0006449948046206494,
+            "solver": "sag"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 13:19:28",
+        "dataset": "Twitch-EN",
+        "model": "RandomForest",
+        "best_mrr_val": "0.3642",
+        "params": {
+            "n_estimators": 300,
+            "max_depth": 8,
+            "min_samples_split": 19,
+            "min_samples_leaf": 13,
+            "criterion": "gini"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 14:05:58",
+        "dataset": "Twitch-DE",
+        "model": "DecisionTree",
+        "best_mrr_val": "0.0648",
+        "params": {
+            "criterion": "gini",
+            "max_depth": 7,
+            "min_samples_split": 30,
+            "min_samples_leaf": 27
+        }
+    },
+    {
+        "timestamp": "2025-07-01 14:23:04",
+        "dataset": "Twitch-DE",
+        "model": "LogisticRegression",
+        "best_mrr_val": "0.0543",
+        "params": {
+            "C": 0.00010700300968853062,
+            "solver": "newton-cg"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 14:50:04",
+        "dataset": "Twitch-DE",
+        "model": "RandomForest",
+        "best_mrr_val": "0.1341",
+        "params": {
+            "n_estimators": 375,
+            "max_depth": 16,
+            "min_samples_split": 9,
+            "min_samples_leaf": 12,
+            "criterion": "entropy"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 14:22:49",
+        "dataset": "Citeseer",
+        "model": "DecisionTree",
+        "best_mrr_val": "0.3549",
+        "params": {
+            "criterion": "gini",
+            "max_depth": 9,
+            "min_samples_split": 3,
+            "min_samples_leaf": 15
+        }
+    },
+    {
+        "timestamp": "2025-07-01 14:23:16",
+        "dataset": "Citeseer",
+        "model": "LogisticRegression",
+        "best_mrr_val": "0.3836",
+        "params": {
+            "C": 0.0009996741445803036,
+            "solver": "lbfgs"
+        }
+    },
+    {
+        "timestamp": "2025-07-01 14:24:10",
+        "dataset": "Citeseer",
+        "model": "RandomForest",
+        "best_mrr_val": "0.3813",
+        "params": {
+            "n_estimators": 100,
+            "max_depth": 35,
+            "min_samples_split": 13,
+            "min_samples_leaf": 12,
+            "criterion": "entropy"
+        }
+    }
+]

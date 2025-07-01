@@ -226,7 +226,6 @@ def generate_comparison_summary(datasets_to_run: list):
     print("\n### Overall Comparison Summary")
     print(summary_df.to_string(float_format="%.4f"))
 
-    # --- Generate Individual Plots for each dataset ---
     print("\n### Generating Individual Dataset Plots ###")
     for dataset_name in datasets_to_run:
         dataset_df = summary_df[summary_df['Dataset'] == dataset_name]
@@ -257,7 +256,6 @@ def generate_comparison_summary(datasets_to_run: list):
         print(f"Individual comparison plot saved to {plot_save_path}")
         plt.close(fig)
 
-    # --- Generate Aggregate Plot if more than one dataset is processed ---
     if len(datasets_to_run) > 1:
         print("\n### Generating Aggregate Comparison Plot ###")
         fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(20, 7), sharey=False)
@@ -290,7 +288,6 @@ def generate_comparison_summary(datasets_to_run: list):
 
 def main():
     parser = argparse.ArgumentParser(description="Run Role Discovery experiments.")
-    # --- ADDED 'summarize' to choices ---
     parser.add_argument('--mode', type=str, default='run', choices=['run', 'tune', 'inference', 'summarize'],
                         help="Execution mode: 'run', 'tune', 'inference', or 'summarize' (only generate plots from existing results).")
     parser.add_argument('--dataset', type=str, nargs='+', default=['Cora'],
@@ -307,7 +304,6 @@ def main():
             run_role_discovery_experiment(dataset, use_tuned_models=True)
         print("\nAll role discovery experiments finished successfully.")
         generate_comparison_summary(args.dataset)
-    # --- ADDED LOGIC FOR 'summarize' MODE ---
     elif args.mode == 'summarize':
         print(f"Running in SUMMARIZE mode. Will generate plots for: {', '.join(args.dataset)}")
         generate_comparison_summary(args.dataset)

@@ -24,7 +24,7 @@ class GNNEmbedder(RoleDiscoveryModel):
                  epochs: int = 500, lr: float = 0.01,
                  val_ratio: float = 0.1, test_ratio: float = 0.05,
                  patience: int = 20, force_retrain: bool = False,
-                 model_path: str = None):
+                 model_path: str = None, seed: int = 42):
         self.epochs = epochs
         self.lr = lr
         self.hidden_channels = hidden_channels
@@ -36,7 +36,8 @@ class GNNEmbedder(RoleDiscoveryModel):
         self.embeddings = None
         self.force_retrain = force_retrain
         self.model_path = model_path
-        print(f"Initialized GNN Embedder (GAE) with params: hidden_channels={hidden_channels}, emb_dim={emb_dim}, lr={lr}.")
+        self.seed = seed
+        print(f"Initialized GNN Embedder (GAE) with params: hidden_channels={hidden_channels}, emb_dim={emb_dim}, lr={lr}, seed={seed}.")
 
 
     def train(self, graph_data: Data):
@@ -58,7 +59,8 @@ class GNNEmbedder(RoleDiscoveryModel):
             print("Embeddings generated from pre-trained model.")
             return
 
-        print("Starting GAE training with validation and early stopping...")
+        print(f"Starting GAE training with validation and early stopping (seed={self.seed})...")
+        torch.manual_seed(self.seed)
         split_transform = T.RandomLinkSplit(
             num_val=self.val_ratio, num_test=self.test_ratio,
             is_undirected=True, add_negative_train_samples=True,

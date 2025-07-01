@@ -6,6 +6,9 @@ from torch_geometric.nn.models import DeepGraphInfomax
 from sklearn.cluster import KMeans
 from pathlib import Path
 
+from torch_geometric.utils import degree
+import torch_geometric.transforms as T
+
 from .RoleDiscoveryModel import RoleDiscoveryModel
 
 def corruption(x, edge_index):
@@ -34,7 +37,13 @@ class DGIEmbedder(RoleDiscoveryModel):
         self.model_path = model_path
 
     def train(self, data: Data):
-        encoder = Encoder(data.num_features, self.hidden_channels)
+        print("DGIEmbedder: Using node degrees as structural features.")
+        node_degrees = degree(data.edge_index[0], data.num_nodes).view(-1, 1)
+        transform = T.NormalizeFeatures()
+        structural_data = Data(x=node_degrees, edge_index=data.edge_index)
+        structural_data = transform(structural_data)
+
+        encoder = Encoder(structural_data.num_features, self.hidden_channels)
         self.model = DeepGraphInfomax(
             encoder=encoder,
             summary=lambda z, *args, **kwargs: z.mean(dim=0),
@@ -47,7 +56,7 @@ class DGIEmbedder(RoleDiscoveryModel):
             self.model.load_state_dict(torch.load(self.model_path))
             with torch.no_grad():
                 self.model.eval()
-                self.embeddings = self.model.encoder(data.x, data.edge_index).detach()
+                self.embeddings = self.model.encoder(structural_data.x, structural_data.edge_index).detach()
             print("Embeddings generated from pre-trained DGI model.")
             return
 
@@ -57,7 +66,7 @@ class DGIEmbedder(RoleDiscoveryModel):
         for epoch in range(1, self.epochs + 1):
             self.model.train()
             optimizer.zero_grad()
-            pos_z, neg_z, summary = self.model(data.x, data.edge_index)
+            pos_z, neg_z, summary = self.model(structural_data.x, structural_data.edge_index)
             loss = self.model.loss(pos_z, neg_z, summary)
             loss.backward()
             optimizer.step()
@@ -72,7 +81,7 @@ class DGIEmbedder(RoleDiscoveryModel):
 
         with torch.no_grad():
             self.model.eval()
-            self.embeddings = self.model.encoder(data.x, data.edge_index).detach()
+            self.embeddings = self.model.encoder(structural_data.x, structural_data.edge_index).detach()
 
     def predict(self, data: Data, k: int) -> tuple[torch.Tensor, torch.Tensor]:
         if self.embeddings is None:

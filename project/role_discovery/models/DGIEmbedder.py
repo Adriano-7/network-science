@@ -9,7 +9,6 @@ from pathlib import Path
 from .RoleDiscoveryModel import RoleDiscoveryModel
 
 def corruption(x, edge_index):
-    """Default corruption function for DGI."""
     return x[torch.randperm(x.size(0))], edge_index
 
 class Encoder(nn.Module):

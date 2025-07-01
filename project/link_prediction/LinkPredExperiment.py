@@ -8,8 +8,10 @@ from models.heuristics.PreferentialAttachment import PreferentialAttachmentModel
 from models.traditional_ml.DecisionTree import DecisionTreeModel
 from models.traditional_ml.LogisticRegression import LogisticRegressionModel
 from models.traditional_ml.RandomForest import RandomForestModel
-from models.deep_learning.GCN import GCNModel
-from models.deep_learning.GraphSAGE import GraphSAGEModel
+from models.deep_learning.GCN1 import GCNModel1
+from models.deep_learning.GraphSAGE1 import GraphSAGEModel1
+from models.deep_learning.GCN2 import GCNModel2
+from models.deep_learning.GraphSAGE2 import GraphSAGEModel2
 
 
 def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, evaluator: Evaluator):
@@ -79,22 +81,22 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         n_jobs=-1
     )
 
-    gcn = GCNModel(
+    gcn = GCNModel1(
         in_channels=num_node_features,
         epochs=500,
         patience=50,
-        dropout=0.36,
-        hidden_channels=256,
-        emb_dim=128,
-        lr=0.0002,
-    )
-    graphsage = GraphSAGEModel(
-        in_channels=num_node_features,
-        epochs=500,
-        patience=50,
-        dropout=0.44,
-        hidden_channels=256,
+        dropout=0.59,
+        hidden_channels=128,
         emb_dim=32,
+        lr=0.005,
+    )
+    graphsage = GraphSAGEModel1(
+        in_channels=num_node_features,
+        epochs=500,
+        patience=50,
+        dropout=0.31,
+        hidden_channels=256,
+        emb_dim=64,
         lr=0.0002,
     )
 
@@ -106,8 +108,8 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         # dec_tree,
         # log_reg,
         # random_forest,
-        # gcn,
-        # graphsage,
+        gcn,
+        graphsage,
     ]
 
     for model in models_to_run:
@@ -118,7 +120,7 @@ def main():
 
     datasets_to_test = [
         #'Cora',
-        #'Citeseer',
+        'Citeseer',
         #'Twitch-EN',
         #'Twitch-DE',
     ]

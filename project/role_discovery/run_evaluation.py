@@ -6,6 +6,7 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_har
 
 # Project-specific imports
 from .models.FeatureBasedRoles import FeatureBasedRoles
+from .models.FeatureBasedRolesGraphlets import FeatureBasedRolesGraphlets
 from .models.GNNEmbedder import GNNEmbedder
 from .models.DGIEmbedder import DGIEmbedder
 from .utils.experiment_utils import get_dataset, clean_params
@@ -61,7 +62,8 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
             "GNN_Embedder_DGI": DGIEmbedder(in_channels=data.num_features, hidden_channels=128, force_retrain=True)
         }
     
-    models_to_test["Feature-Based_Roles"] = FeatureBasedRoles()
+    models_to_test["Feature-Based_Roles"] = FeatureBasedRoles() 
+    models_to_test["Feature-Based_Roles_Graphlets"] = FeatureBasedRolesGraphlets()
 
     k_values = [3, 4, 5, 6, 7]
     for model_name, model in models_to_test.items():

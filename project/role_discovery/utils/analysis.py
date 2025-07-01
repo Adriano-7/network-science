@@ -120,7 +120,7 @@ def generate_comparison_summary(datasets_to_run: list):
     root_results_dir = Path("results/role_discovery/")
     for dataset_name in datasets_to_run:
         output_dir = root_results_dir / dataset_name
-        model_names = ["Feature-Based_Roles", "GNN_Embedder_GAE", "GNN_Embedder_DGI"]
+        model_names = ["Feature-Based_Roles", "Feature-Based_Roles_Graphlets", "GNN_Embedder_GAE", "GNN_Embedder_DGI"]
         
         for model_name in model_names:
             csv_path = output_dir / f"{model_name}_clustering_metrics.csv"

@@ -5,9 +5,6 @@ from sklearn.manifold import TSNE
 
 def visualize_roles_tsne(embeddings: torch.Tensor, role_labels: torch.Tensor, title: str,
                          score: float, save_path: str = None):
-    """
-    Visualizes node embeddings in 2D using t-SNE, colored by their assigned role.
-    """
     print(f"Generating t-SNE visualization for: {title}")
     
     embeddings_np = embeddings.cpu().detach().numpy()

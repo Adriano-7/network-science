@@ -7,7 +7,7 @@ import torch_geometric.transforms as T
 import matplotlib.pyplot as plt
 from pathlib import Path
 from torch_geometric.utils import degree, negative_sampling
-
+import copy 
 from .RoleDiscoveryModel import RoleDiscoveryModel
 
 class GCNEncoder(torch.nn.Module):
@@ -22,8 +22,9 @@ class GCNEncoder(torch.nn.Module):
 
 class GNNEmbedder(RoleDiscoveryModel):
     def __init__(self, hidden_channels: int = 128, emb_dim: int = 32,
-                 epochs: int = 200, lr: float = 0.01,
-                 val_ratio: float = 0.1, test_ratio: float = 0.05):
+                     epochs: int = 500, lr: float = 0.01, 
+                     val_ratio: float = 0.1, test_ratio: float = 0.05,
+                     patience: int = 20): 
         print("Initialized GNN Embedder (GAE) for Role Discovery.")
         self.epochs = epochs
         self.lr = lr
@@ -31,23 +32,24 @@ class GNNEmbedder(RoleDiscoveryModel):
         self.emb_dim = emb_dim
         self.val_ratio = val_ratio
         self.test_ratio = test_ratio
+        self.patience = patience 
         self.model = None
         self.embeddings = None
         self.train_losses = []
         self.val_aucs = []
 
     def train(self, graph_data: Data):
-        print("Starting GAE training with validation...")
+        print("Starting GAE training with validation and early stopping...")
 
-        # 1. Use node degrees as features
+        # Use node degrees as features
         deg = degree(graph_data.edge_index[0], graph_data.num_nodes).view(-1, 1)
         
-        # 2. Apply feature normalization
+        # Apply feature normalization
         transform = T.NormalizeFeatures()
         structural_data = Data(x=deg, edge_index=graph_data.edge_index)
         structural_data = transform(structural_data)
 
-        # 3. Split data into training, validation, and test sets
+        # Split data into training, validation, and test sets
         split_transform = T.RandomLinkSplit(
             num_val=self.val_ratio,
             num_test=self.test_ratio,
@@ -56,7 +58,7 @@ class GNNEmbedder(RoleDiscoveryModel):
         )
         train_data, val_data, test_data = split_transform(structural_data)
 
-        # 4. Initialize the GAE model
+        # Initialize the GAE model
         in_channels = train_data.num_features
         encoder = GCNEncoder(in_channels, self.hidden_channels, self.emb_dim)
         self.model = GAE(encoder)
@@ -65,6 +67,7 @@ class GNNEmbedder(RoleDiscoveryModel):
         
         best_val_auc = 0
         best_model_state = None
+        patience_counter = 0 
 
         for epoch in range(1, self.epochs + 1):
             self.model.train()
@@ -76,11 +79,9 @@ class GNNEmbedder(RoleDiscoveryModel):
             
             self.train_losses.append(loss.item())
 
-            # Validation step
             self.model.eval()
             with torch.no_grad():
                 z = self.model.encode(val_data.x, val_data.edge_index)
-                # Generate negative samples for validation if they don't exist
                 if not hasattr(val_data, 'neg_edge_label_index'):
                     num_neg_edges = val_data.edge_label_index.size(1)
                     neg_edge_index = negative_sampling(
@@ -95,20 +96,31 @@ class GNNEmbedder(RoleDiscoveryModel):
 
             if val_auc > best_val_auc:
                 best_val_auc = val_auc
-                best_model_state = self.model.state_dict()
-
-            if epoch % 20 == 0:
+                best_model_state = copy.deepcopy(self.model.state_dict()) 
+                patience_counter = 0
+            else:
+                patience_counter += 1
+            
+            if epoch % 10 == 0: 
                 print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val AUC: {val_auc:.4f}')
 
-        print("GAE training finished.")
+            if patience_counter >= self.patience:
+                print(f"Early stopping at epoch {epoch} due to no improvement in Val AUC for {self.patience} checks.")
+                break
         
+        if best_model_state:
+            print(f"Training finished. Loading best model with Val AUC: {best_val_auc:.4f}")
+            self.model.load_state_dict(best_model_state)
+        else:
+            print("Warning: Training finished, but no best model was saved. Using the last state.")
+
         # Save the best model
         if best_model_state is not None:
-            model_save_path = 'best_gae_model.pt'
+            project_root = Path(__file__).resolve().parents[2]
+            model_save_path = project_root / 'best_gae_model.pt'
             torch.save(best_model_state, model_save_path)
             print(f'Best model saved to {model_save_path} with Val AUC: {best_val_auc:.4f}')
 
-        # Plot and save the metrics
         fig, ax1 = plt.subplots(figsize=(12, 6))
         ax1.plot(self.train_losses, 'b-', label='Training Loss')
         ax1.set_xlabel('Epoch')
@@ -116,22 +128,20 @@ class GNNEmbedder(RoleDiscoveryModel):
         ax1.tick_params('y', colors='b')
 
         ax2 = ax1.twinx()
-        ax2.plot(self.val_aucs, 'r-', label='Validation AUC')
+        ax2.plot(range(1, len(self.val_aucs) + 1), self.val_aucs, 'r-', label='Validation AUC')
         ax2.set_ylabel('AUC', color='r')
         ax2.tick_params('y', colors='r')
 
         fig.tight_layout()
         plt.title('GAE Training Metrics')
-        plot_save_path = 'training_metrics.png'
+        plot_save_path = project_root / 'training_metrics.png'
         plt.savefig(plot_save_path)
         print(f'Training metrics plot saved to {plot_save_path}')
         plt.close()
 
-        # Final evaluation on the full data to get embeddings
         with torch.no_grad():
             self.model.eval()
             self.embeddings = self.model.encode(structural_data.x, structural_data.edge_index).detach()
-
 
     def predict(self, graph_data: Data, k: int) -> tuple[torch.Tensor, torch.Tensor]:
         if self.embeddings is None:

@@ -1,12 +1,9 @@
-# project/role_discovery/models/RoleDiscoveryModel.py
 from abc import ABC, abstractmethod
 from typing import Tuple
 import torch
 from torch_geometric.data import Data
 
 class RoleDiscoveryModel(ABC):
-    """Abstract base class for all role discovery models."""
-
     def train(self, graph_data: Data):
         """
         Optional training step for models that require it.

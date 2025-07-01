@@ -67,7 +67,7 @@ def run_role_discovery_experiment(dataset_name: str):
                 continue
 
         results_df = pd.DataFrame(results).set_index('k')
-        print("\n--- Clustering Evaluation Summary ---")
+        print("\n### Clustering Evaluation Summary")
         print(results_df.to_string(float_format="%.4f"))
         print(f"\nBest result found for k={best_k} with a Silhouette Score of {best_score:.4f}")
 

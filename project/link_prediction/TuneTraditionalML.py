@@ -7,6 +7,7 @@ from DatasetManager import DatasetManager
 from models.traditional_ml.DecisionTree import DecisionTreeModel
 from models.traditional_ml.LogisticRegression import LogisticRegressionModel
 from models.traditional_ml.RandomForest import RandomForestModel
+from models.traditional_ml.KNN import KNNModel
 
 def calculate_mrr(predictions: torch.Tensor, ground_truth: torch.Tensor) -> float:
     """Calculates the Mean Reciprocal Rank (MRR) for a set of predictions."""
@@ -53,6 +54,14 @@ def get_model_and_params(model_name: str, trial: optuna.trial.Trial):
             'n_jobs': -1
         }
         model = RandomForestModel(**params)
+    elif model_name == 'KNN':
+        params = {
+            'n_neighbors': trial.suggest_int('n_neighbors', 3, 50),
+            'weights': trial.suggest_categorical('weights', ['uniform', 'distance']),
+            'metric': trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'minkowski']),
+            'n_jobs': -1
+        }
+        model = KNNModel(**params)
     else:
         raise ValueError(f"Unknown model name for tuning: {model_name}")
 
@@ -117,9 +126,9 @@ def save_tuning_results(dataset_name, model_name, best_trial, output_file):
     print(f"Best results for {model_name} on {dataset_name} saved to {output_file}")
 
 
-def main():
-    DATASET_TO_TUNE = 'Twitch'
-    NUM_TRIALS = 50
+def main(dataset_name: str):
+    DATASET_TO_TUNE = dataset_name
+    NUM_TRIALS = 100
     OUTPUT_FILE = "results/tune/traditional_ml.json"
 
     print(f"Starting hyperparameter tuning on the '{DATASET_TO_TUNE}' dataset for traditional ML models.")
@@ -127,9 +136,10 @@ def main():
     dataset_manager = DatasetManager(dataset_name=DATASET_TO_TUNE, seed=42)
 
     models_to_tune = [
-        'DecisionTree', 
-        'LogisticRegression', 
-        'RandomForest'
+        # 'DecisionTree', 
+        # 'LogisticRegression', 
+        # 'RandomForest',
+        'KNN'
     ]
 
     for model_name in models_to_tune:
@@ -151,10 +161,11 @@ def main():
             print(f"    {key}: {value}")
         print("-" * 30 + "\n")
 
-        # The function call remains the same, but its internal logic is now for JSON
         save_tuning_results(DATASET_TO_TUNE, model_name, best_trial, OUTPUT_FILE)
 
     print("All traditional ML tuning processes finished successfully.")
 
 if __name__ == '__main__':
-    main()
+    datasets = ['Cora', 'Citeseer', 'Twitch-EN', 'Twitch-DE']
+    for dataset in datasets:
+        main(dataset)

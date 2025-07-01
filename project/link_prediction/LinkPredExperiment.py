@@ -8,6 +8,7 @@ from models.heuristics.PreferentialAttachment import PreferentialAttachmentModel
 from models.traditional_ml.DecisionTree import DecisionTreeModel
 from models.traditional_ml.LogisticRegression import LogisticRegressionModel
 from models.traditional_ml.RandomForest import RandomForestModel
+from models.traditional_ml.KNN import KNNModel
 from models.deep_learning.GCN1 import GCNModel1
 from models.deep_learning.GraphSAGE1 import GraphSAGEModel1
 from models.deep_learning.GCN2 import GCNModel2
@@ -80,12 +81,18 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         random_state=seed,
         n_jobs=-1
     )
+    knn = KNNModel(
+        n_neighbors=49,
+        weights='uniform',
+        metric='euclidean',
+    )
+
 
     gcn = GCNModel1(
         in_channels=num_node_features,
         epochs=500,
         patience=50,
-        dropout=0.59,
+        dropout=0.50,
         hidden_channels=128,
         emb_dim=32,
         lr=0.005,
@@ -95,9 +102,9 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         epochs=500,
         patience=50,
         dropout=0.31,
-        hidden_channels=256,
-        emb_dim=64,
-        lr=0.0002,
+        hidden_channels=128,
+        emb_dim=128,
+        lr=0.001,
     )
 
     models_to_run = [
@@ -108,6 +115,7 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         # dec_tree,
         # log_reg,
         # random_forest,
+        # knn,
         gcn,
         graphsage,
     ]
@@ -119,10 +127,10 @@ def main():
     print("Initializing experiment suite")
 
     datasets_to_test = [
-        #'Cora',
-        'Citeseer',
-        #'Twitch-EN',
-        #'Twitch-DE',
+        # 'Cora',
+        # 'Citeseer',
+        # 'Twitch-EN',
+        'Twitch-DE',
     ]
     
     for dataset in datasets_to_test:

@@ -15,7 +15,7 @@
 #   - Can we assign meaningful, interpretable labels (e.g., "hub," "bridge," "periphery") to the discovered roles?
 # 
 
-# In[2]:
+# In[1]:
 
 
 import pandas as pd
@@ -42,7 +42,7 @@ print(f"Datasets to Analyze: {DATASETS}")
 # ## 1\. High-Level Comparison Across All Datasets
 # 
 
-# In[3]:
+# In[2]:
 
 
 summary_path = RESULTS_DIR / "comparison_summary.csv"
@@ -69,7 +69,7 @@ display(summary_df.style.format({
 #   - **Calinski-Harabasz Index**: Higher is better. The ratio of between-cluster dispersion to within-cluster dispersion.
 # 
 
-# In[4]:
+# In[3]:
 
 
 if not summary_df.empty:
@@ -98,9 +98,9 @@ if not summary_df.empty:
 # **Interpretation:**
 # The visualizations clearly show that the GNN-based methods (GAE and DGI) consistently outperform the traditional `Feature-Based_Roles` approach across all datasets and nearly all metrics. Between the two GNN methods, there isn't a single clear winner; their performance is competitive, with GAE slightly ahead expecially for the Actor and cluster datasets.
 
-# ## 2\. Deep Dive: Analysis of the "Actor" Dataset
+# ## 2\. Analysis of the "Actor" Dataset
 # 
-# Now, we perform a analysis on a single dataset to understand the results more deeply. We choose the **Actor** dataset as it represents a real-world network where roles are likely to be complex and interesting.
+# Now, we perform a analysis on a single dataset to understand the results more deeply. We choose the **Actor** dataset.
 # 
 # 
 # ### 2.1. Finding the Optimal Number of Roles ($k$)
@@ -108,7 +108,7 @@ if not summary_df.empty:
 # To select the best number of roles, $k$, for each model, we plot the Silhouette Score against different values of $k$ that were tested. A peak or an "elbow" in the plot suggests an optimal value for $k$.
 # 
 
-# In[5]:
+# In[4]:
 
 
 fig, ax = plt.subplots(figsize=(14, 7))
@@ -138,7 +138,7 @@ plt.show()
 # We will load and display the pre-generated t-SNE plots for the best $k$ value of each model.
 # 
 
-# In[ ]:
+# In[5]:
 
 
 import matplotlib.pyplot as plt
@@ -179,7 +179,7 @@ plt.show()
 # ### 2.3. Interpreting Role Characteristics
 # Moving beyond scores and visualizations to understand *what these roles represent*. We load the analysis files, which contain the average structural properties (degree, betweenness, etc.) for nodes within each role. By examining these properties, we can assign intuitive labels.
 
-# In[9]:
+# In[6]:
 
 
 def plot_role_profiles(df, dataset_name, model_name, k, ax):
@@ -242,6 +242,48 @@ plt.show()
 #   - **Role 1 (Connectors/Brokers, \~862 nodes)**: This group has moderately high values for `avg_degree` and `avg_betweenness` relative to the periphery. The high betweenness suggests these actors play a crucial role in connecting different parts of the network, acting as bridges or brokers between different communities (e.g., genres or film series).
 #   - **Role 2 (Super-Hub, 1 node)**: This role contains a single node with exceptionally high values for every single centrality metric. Its `avg_betweenness` and `avg_eigenvector` scores dominate all others. This is the ultimate "hub" of the network, a superstar actor who is not only highly connected but is also connected to other important actors, making them central to the entire graph structure.
 # 
+
+# ### 2.4. Analyzing Role Interactions with Adjacency Matrices
+# 
+# While role profiles tell us about node properties *within* a role, they don't describe how roles connect *to each other*. To analyze this, we compute a **role-to-role adjacency matrix**.
+# 
+# - **Raw Counts Matrix**: The entry `(i, j)` shows the absolute number of edges connecting nodes from role `i` to nodes in role `j`.
+# - **Normalized Connectivity Matrix**: This matrix is row-normalized by the total degree sum of each role. The entry `(i, j)` represents the proportion of role `i`'s total connections (stubs) that go to role `j`. This reveals preferences:
+#   - A high diagonal value (`~1.0`) indicates an insular role (a community).
+#   - High off-diagonal values for a row `i` show it's a "bridge" or "connector" role.
+# 
+# 
+
+# In[11]:
+
+
+fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+
+model_name = 'GNN_Embedder_GAE'
+dataset_name = 'Actor'
+k = best_k_series.get(model_name)
+
+if k:
+    norm_path = RESULTS_DIR / f"{dataset_name}/{model_name}_k{k}_role_adj_heatmap_normalized.png"
+    ax.set_title(f"Normalized Role Connectivity for {model_name} (k={k}) on {dataset_name}", fontsize=18, pad=15)
+    if norm_path.exists():
+        img_norm = mpimg.imread(norm_path)
+        ax.imshow(img_norm)
+    else:
+        ax.text(0.5, 0.5, 'Image not found', ha='center', va='center')
+    ax.axis('off')
+else:
+    print(f"Could not find best k for {model_name} on {dataset_name}")
+    ax.axis('off')
+
+plt.show()
+
+
+# * **Role 2 is a distinct "Super-Hub"**: This role directs almost all of its connections (91%) outward to Role 0 and has virtually no connections to itself or Role 1. This confirms its function as a central hub connecting to the broader network periphery.
+# 
+# * **Role 1 acts as a "Connector/Bridge"**: This role's connections are primarily directed towards Role 0 (61%), with a smaller portion connecting to other nodes within its own role (39%). This pattern is characteristic of a bridging role that links the peripheral nodes (Role 0) together.
+# 
+# * **Role 0 represents the "Periphery"**: These nodes are moderately insular, with a significant number of connections (54%) to other nodes within Role 0, forming local communities. They also connect extensively to the "connector" nodes of Role 1 (42%), which links them to the wider graph structure.
 
 # ## 3\. Conclusions
 # 

@@ -1,6 +1,7 @@
 import torch
 import networkx as nx
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
@@ -54,11 +55,63 @@ def analyze_role_characteristics(data: torch.Tensor, role_labels: torch.Tensor, 
     role_summary_df.to_csv(analysis_save_path, index=False)
     print(f"\nRole analysis summary saved to: {analysis_save_path}")
 
+def create_and_visualize_role_adjacency(data: torch.Tensor, role_labels: torch.Tensor, k: int, model_name: str, dataset_name: str, output_dir: Path):
+    print(f"\nCreating Role-to-Role Adjacency Matrix for {model_name} on {dataset_name} (k={k})")
+
+    role_adj = np.zeros((k, k), dtype=int)
+    edge_index = data.edge_index.cpu().numpy()
+    labels = role_labels.cpu().numpy()
+
+    for i in range(edge_index.shape[1]):
+        u, v = edge_index[0, i], edge_index[1, i]
+        if u < len(labels) and v < len(labels):
+            role_u = labels[u]
+            role_v = labels[v]
+            if role_u == role_v:
+                role_adj[role_u, role_u] += 2 
+            else:
+                role_adj[role_u, role_v] += 1
+                role_adj[role_v, role_u] += 1
+
+    edge_counts = role_adj.copy()
+    for i in range(k):
+        edge_counts[i, i] //= 2
+    
+    counts_df = pd.DataFrame(edge_counts, index=[f"Role {i}" for i in range(k)], columns=[f"Role {i}" for i in range(k)])
+    raw_save_path = output_dir / f"{model_name}_k{k}_role_adj_matrix_counts.csv"
+    counts_df.to_csv(raw_save_path)
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(counts_df, annot=True, fmt='d', cmap='viridis', linewidths=.5)
+    plt.title(f'Raw Edge Counts Between Roles\n({model_name} on {dataset_name}, k={k})', fontsize=16)
+    plt.xlabel('Role ID', fontsize=12)
+    plt.ylabel('Role ID', fontsize=12)
+    raw_plot_path = output_dir / f"{model_name}_k{k}_role_adj_heatmap_counts.png"
+    plt.savefig(raw_plot_path, bbox_inches='tight')
+    plt.close()
+    print(f"Raw counts heatmap saved to {raw_plot_path}")
+
+    row_sums = role_adj.sum(axis=1)
+    row_sums[row_sums == 0] = 1 
+    role_adj_normalized = role_adj / row_sums[:, np.newaxis]
+
+    norm_df = pd.DataFrame(role_adj_normalized, index=[f"Role {i}" for i in range(k)], columns=[f"Role {i}" for i in range(k)])
+    norm_save_path = output_dir / f"{model_name}_k{k}_role_adj_matrix_normalized.csv"
+    norm_df.to_csv(norm_save_path)
+    print(f"Normalized role adjacency matrix saved to {norm_save_path}")
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(norm_df, annot=True, fmt='.2f', cmap='magma', linewidths=.5)
+    plt.title(f'Normalized Role Connectivity (by Degree Sum)\n({model_name} on {dataset_name}, k={k})', fontsize=16)
+    plt.xlabel('Destination Role', fontsize=12)
+    plt.ylabel('Source Role', fontsize=12)
+    norm_plot_path = output_dir / f"{model_name}_k{k}_role_adj_heatmap_normalized.png"
+    plt.savefig(norm_plot_path, bbox_inches='tight')
+    plt.close()
+    print(f"Normalized heatmap saved to {norm_plot_path}")
+
 
 def generate_comparison_summary(datasets_to_run: list):
-    """
-    Reads all individual experiment results, creates a summary CSV, and generates comparison plots.
-    """
     print("\n" + "#"*60)
     print("GENERATING COMPARISON SUMMARY AND PLOTS")
     print("#"*60)

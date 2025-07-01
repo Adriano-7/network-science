@@ -10,7 +10,7 @@ from .models.GNNEmbedder import GNNEmbedder
 from .models.DGIEmbedder import DGIEmbedder
 from .utils.experiment_utils import get_dataset, clean_params
 from .utils.visualization import visualize_roles_tsne
-from .utils.analysis import analyze_role_characteristics
+from .utils.analysis import analyze_role_characteristics, create_and_visualize_role_adjacency
 
 def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = False):
     """
@@ -29,7 +29,6 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
     data = dataset[0]
     print(f"Successfully loaded '{dataset_name}': {data.num_nodes} nodes, {data.num_edges} edges.")
 
-    # --- Model Configuration ---
     models_to_test = {}
     if use_tuned_models:
         print("\n### Loading BEST pre-tuned models ###")
@@ -39,21 +38,17 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
         
         tuning_df = pd.read_csv(tuning_results_path)
         
-        # GAE Model
         gae_results = tuning_df[tuning_df['model_name'] == 'GNN_Embedder_GAE']
         if not gae_results.empty:
             raw_gae_params = gae_results.iloc[0].to_dict()
-            # ** FIX: Remove keys that are not constructor arguments **
             raw_gae_params.pop('model_name', None)
             raw_gae_params.pop('best_silhouette', None)
             gae_params = clean_params(raw_gae_params)
             models_to_test["GNN_Embedder_GAE"] = GNNEmbedder(**gae_params, model_path=str(output_dir / "best_GNN_Embedder_GAE_model.pt"), force_retrain=False)
 
-        # DGI Model
         dgi_results = tuning_df[tuning_df['model_name'] == 'GNN_Embedder_DGI']
         if not dgi_results.empty:
             raw_dgi_params = dgi_results.iloc[0].to_dict()
-            # ** FIX: Remove keys that are not constructor arguments **
             raw_dgi_params.pop('model_name', None)
             raw_dgi_params.pop('best_silhouette', None)
             dgi_params = clean_params(raw_dgi_params)
@@ -68,7 +63,6 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
     
     models_to_test["Feature-Based_Roles"] = FeatureBasedRoles()
 
-    # --- Experiment Loop ---
     k_values = [3, 4, 5, 6, 7]
     for model_name, model in models_to_test.items():
         print("\n" + "="*50)
@@ -110,6 +104,7 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
                 save_path=str(output_dir / f"{model_name}_k{best_k}_tsne.png")
             )
             analyze_role_characteristics(data, role_labels, model_name, dataset_name, best_k, output_dir)
+            create_and_visualize_role_adjacency(data, role_labels, best_k, model_name, dataset_name, output_dir)
 
 def main():
     parser = argparse.ArgumentParser(description="Run Role Discovery evaluation experiments.")

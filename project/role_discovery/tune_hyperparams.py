@@ -7,6 +7,8 @@ from sklearn.metrics import silhouette_score
 
 from .models.GNNEmbedder import GNNEmbedder
 from .models.DGIEmbedder import DGIEmbedder
+from .models.GNNEmbedderGraphlets import GNNEmbedderGraphlets
+from .models.DGIEmbedderGraphlets import DGIEmbedderGraphlets
 from .utils.experiment_utils import get_dataset, clean_params
 
 def run_hyperparameter_tuning(dataset_name: str):
@@ -23,7 +25,9 @@ def run_hyperparameter_tuning(dataset_name: str):
 
     param_grid = {
         'GNN_Embedder_GAE': {'lr': [0.01, 0.005], 'hidden_channels': [128, 256], 'emb_dim': [32, 64]},
-        'GNN_Embedder_DGI': {'lr': [0.001, 0.0005], 'hidden_channels': [128, 256]}
+        'GNN_Embedder_DGI': {'lr': [0.001, 0.0005], 'hidden_channels': [128, 256]},
+        'GNN_Embedder_GAE_Graphlets': {'lr': [0.01, 0.005], 'hidden_channels': [128, 256], 'emb_dim': [32, 64]},
+        'GNN_Embedder_DGI_Graphlets': {'lr': [0.001, 0.0005], 'hidden_channels': [128, 256]},
     }
     
     all_tuning_results = []
@@ -37,7 +41,14 @@ def run_hyperparameter_tuning(dataset_name: str):
             params = dict(zip(keys, param_combination))
             print(f"\nTesting params: {params}")
             
-            model = GNNEmbedder(**params, force_retrain=True) if model_name == 'GNN_Embedder_GAE' else DGIEmbedder(in_channels=data.num_features, **params, force_retrain=True)
+            if model_name == 'GNN_Embedder_GAE':
+                model = GNNEmbedder(**params, force_retrain=True)
+            elif model_name == 'GNN_Embedder_DGI':
+                model = DGIEmbedder(in_channels=data.num_features, **params, force_retrain=True)
+            elif model_name == 'GNN_Embedder_GAE_Graphlets':
+                model = GNNEmbedderGraphlets(**params, force_retrain=True)
+            elif model_name == 'GNN_Embedder_DGI_Graphlets':
+                model = DGIEmbedderGraphlets(**params, force_retrain=True)
             
             best_silhouette_for_params = -2
             
@@ -67,8 +78,15 @@ def run_hyperparameter_tuning(dataset_name: str):
             best_params = clean_params(model_results.iloc[0].drop(['model_name', 'best_silhouette']).to_dict())
             print(f"\nRetraining best {model_name} with params: {best_params}")
             
-            model_save_path = output_dir / f"best_{model_name}_model.pt"
-            best_model = GNNEmbedder(**best_params, model_path=str(model_save_path), force_retrain=True) if model_name == 'GNN_Embedder_GAE' else DGIEmbedder(in_channels=data.num_features, **best_params, model_path=str(model_save_path), force_retrain=True)
+            model_save_path = str(output_dir / f"best_{model_name}_model.pt")
+            if model_name == 'GNN_Embedder_GAE':
+                best_model = GNNEmbedder(**best_params, model_path=model_save_path, force_retrain=True)
+            elif model_name == 'GNN_Embedder_DGI':
+                best_model = DGIEmbedder(in_channels=data.num_features, **best_params, model_path=model_save_path, force_retrain=True)
+            elif model_name == 'GNN_Embedder_GAE_Graphlets':
+                best_model = GNNEmbedderGraphlets(**best_params, model_path=model_save_path, force_retrain=True)
+            elif model_name == 'GNN_Embedder_DGI_Graphlets':
+                best_model = DGIEmbedderGraphlets(**best_params, model_path=model_save_path, force_retrain=True)
             
             best_model.train(data) 
             print(f"Best model for {model_name} saved successfully.")

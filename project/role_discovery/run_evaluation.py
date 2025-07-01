@@ -9,6 +9,8 @@ from .models.FeatureBasedRoles import FeatureBasedRoles
 from .models.FeatureBasedRolesGraphlets import FeatureBasedRolesGraphlets
 from .models.GNNEmbedder import GNNEmbedder
 from .models.DGIEmbedder import DGIEmbedder
+from .models.GNNEmbedderGraphlets import GNNEmbedderGraphlets
+from .models.DGIEmbedderGraphlets import DGIEmbedderGraphlets
 from .utils.experiment_utils import get_dataset, clean_params
 from .utils.visualization import visualize_roles_tsne
 from .utils.analysis import analyze_role_characteristics, create_and_visualize_role_adjacency
@@ -37,23 +39,36 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
         if not tuning_results_path.exists():
             raise FileNotFoundError(f"Tuning results not found at {tuning_results_path}. Run tuning first.")
         
-        tuning_df = pd.read_csv(tuning_results_path)
-        
-        gae_results = tuning_df[tuning_df['model_name'] == 'GNN_Embedder_GAE']
-        if not gae_results.empty:
-            raw_gae_params = gae_results.iloc[0].to_dict()
-            raw_gae_params.pop('model_name', None)
-            raw_gae_params.pop('best_silhouette', None)
-            gae_params = clean_params(raw_gae_params)
+        tuning_df = pd.read_csv(tuning_results_path).sort_values('best_silhouette', ascending=False)
+
+        def get_best_params_for_model(model_name):
+            model_results = tuning_df[tuning_df['model_name'] == model_name]
+            if not model_results.empty:
+                best_params_raw = model_results.iloc[0].to_dict()
+                best_params_raw.pop('model_name', None)
+                best_params_raw.pop('best_silhouette', None)
+                return clean_params(best_params_raw)
+            print(f"Warning: No tuning results found for {model_name}. It will be skipped.")
+            return None
+
+        # --- GAE (Degree features) ---
+        gae_params = get_best_params_for_model('GNN_Embedder_GAE')
+        if gae_params:
             models_to_test["GNN_Embedder_GAE"] = GNNEmbedder(**gae_params, model_path=str(output_dir / "best_GNN_Embedder_GAE_model.pt"), force_retrain=False)
 
-        dgi_results = tuning_df[tuning_df['model_name'] == 'GNN_Embedder_DGI']
-        if not dgi_results.empty:
-            raw_dgi_params = dgi_results.iloc[0].to_dict()
-            raw_dgi_params.pop('model_name', None)
-            raw_dgi_params.pop('best_silhouette', None)
-            dgi_params = clean_params(raw_dgi_params)
+        # --- GAE (Graphlet features) ---
+        gae_graphlet_params = get_best_params_for_model('GNN_Embedder_GAE_Graphlets')
+        if gae_graphlet_params:
+            models_to_test["GNN_Embedder_GAE_Graphlets"] = GNNEmbedderGraphlets(**gae_graphlet_params, model_path=str(output_dir / "best_GNN_Embedder_GAE_Graphlets_model.pt"), force_retrain=False)
+
+        dgi_params = get_best_params_for_model('GNN_Embedder_DGI')
+        if dgi_params:
             models_to_test["GNN_Embedder_DGI"] = DGIEmbedder(in_channels=data.num_features, **dgi_params, model_path=str(output_dir / "best_GNN_Embedder_DGI_model.pt"), force_retrain=False)
+
+        dgi_graphlet_params = get_best_params_for_model('GNN_Embedder_DGI_Graphlets')
+        if dgi_graphlet_params:
+            dgi_graphlet_params.pop('in_channels', None) # This model infers in_channels
+            models_to_test["GNN_Embedder_DGI_Graphlets"] = DGIEmbedderGraphlets(**dgi_graphlet_params, model_path=str(output_dir / "best_GNN_Embedder_DGI_Graphlets_model.pt"), force_retrain=False)
 
     else:
         print("\n### Using DEFAULT models ###")
@@ -61,8 +76,10 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
             "GNN_Embedder_GAE": GNNEmbedder(hidden_channels=128, emb_dim=32, force_retrain=True),
             "GNN_Embedder_DGI": DGIEmbedder(in_channels=data.num_features, hidden_channels=128, force_retrain=True)
         }
+        models_to_test["GNN_Embedder_GAE_Graphlets"] = GNNEmbedderGraphlets(hidden_channels=128, emb_dim=32, force_retrain=True)
+        models_to_test["GNN_Embedder_DGI_Graphlets"] = DGIEmbedderGraphlets(hidden_channels=128, force_retrain=True)
     
-    models_to_test["Feature-Based_Roles"] = FeatureBasedRoles() 
+    models_to_test["Feature-Based_Roles"] = FeatureBasedRoles()
     models_to_test["Feature-Based_Roles_Graphlets"] = FeatureBasedRolesGraphlets()
 
     k_values = [3, 4, 5, 6, 7]

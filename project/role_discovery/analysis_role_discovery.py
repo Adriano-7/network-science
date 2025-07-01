@@ -6,7 +6,8 @@
 # The primary objective is to compare the efficacy of two distinct approaches:
 # 
 # 1.  **Traditional Method (`Feature-Based_Roles`)**: This method involves extracting a vector of structural features (e.g., centrality metrics, clustering coefficient) for each node and then applying K-Means clustering.
-# 2.  **GNN-based Methods (`GNN_Embedder_GAE`, `GNN_Embedder_DGI`)**: These methods use an unsupervised Graph Neural Network (a Graph Autoencoder or Deep Graph Infomax model) to learn low-dimensional node embeddings. These embeddings, which capture the structural context of nodes, are then clustered using K-Means.
+# 2.  **GNNs with Simple Features**: Unsupervised GNNs (`GAE`, `DGI`) learn node embeddings from the graph structure, using only node degrees as initial features.
+# 3.  **GNNs with Graphlet Features**: The same GNNs are provided with pre-computed graphlet features as input, combining engineered features with learned representations.
 # 
 # The analysis is performed on three datasets: **Cora**, **Actor**, and **CLUSTER**. We will evaluate the models based on internal clustering metrics and qualitative analysis, aiming to answer the following key questions:
 # 
@@ -14,8 +15,9 @@
 #   - How do we determine the optimal number of roles, $k$?
 #   - Can we assign meaningful, interpretable labels (e.g., "hub," "bridge," "periphery") to the discovered roles?
 # 
+#   - How crucial are input features for graph neural networks in the context of role discovery?
 
-# In[1]:
+# In[70]:
 
 
 import pandas as pd
@@ -24,15 +26,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
 import warnings
+import sys
+from IPython.display import display
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 sns.set_theme(style="whitegrid", palette="magma")
 plt.rcParams['figure.figsize'] = (12, 7)
 plt.rcParams['font.size'] = 12
 
-RESULTS_DIR = Path("../results/role_discovery/")
+RESULTS_DIR = Path("results/role_discovery/")
 DATASETS = ['Cora', 'Actor', 'CLUSTER']
-MODELS = ["Feature-Based_Roles", "GNN_Embedder_GAE", "GNN_Embedder_DGI"]
+MODELS = [
+    "Feature-Based_Roles", "Feature-Based_Roles_Graphlets",
+    "GNN_Embedder_GAE", "GNN_Embedder_GAE_Graphlets",
+    "GNN_Embedder_DGI", "GNN_Embedder_DGI_Graphlets"
+]
 
 print(f"Analysis Notebook Setup Complete.")
 print(f"Results Directory: {RESULTS_DIR.resolve()}")
@@ -42,7 +50,7 @@ print(f"Datasets to Analyze: {DATASETS}")
 # ## 1\. High-Level Comparison Across All Datasets
 # 
 
-# In[2]:
+# In[71]:
 
 
 summary_path = RESULTS_DIR / "comparison_summary.csv"
@@ -54,11 +62,12 @@ else:
     summary_df = pd.read_csv(summary_path)
 
 print("--- Overall Model Performance (based on best Silhouette Score) ---")
-display(summary_df.style.format({
-    'Silhouette Score': '{:.4f}',
-    'Davies-Bouldin Index': '{:.4f}',
-    'Calinski-Harabasz Index': '{:,.2f}'
-}))
+if not summary_df.empty:
+    display(summary_df.sort_values('Silhouette Score', ascending=False).style.format({
+        'Silhouette Score': '{:.4f}',
+        'Davies-Bouldin Index': '{:.4f}',
+        'Calinski-Harabasz Index': '{:,.2f}'
+    }))
 
 
 # ### 1.1. Visualizing Overall Performance
@@ -69,34 +78,37 @@ display(summary_df.style.format({
 #   - **Calinski-Harabasz Index**: Higher is better. The ratio of between-cluster dispersion to within-cluster dispersion.
 # 
 
-# In[3]:
+# In[72]:
 
 
 if not summary_df.empty:
-    fig, axes = plt.subplots(1, 3, figsize=(24, 7))
-    fig.suptitle('Overall Model Performance Comparison', fontsize=20, y=1.03)
+    fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+    fig.suptitle('Overall Model Performance Comparison Across Datasets', fontsize=20, y=1.03)
 
-    metrics = [("Silhouette Score", "Higher is Better"), 
-               ("Davies-Bouldin Index", "Lower is Better"), 
+    metrics = [("Silhouette Score", "Higher is Better"),
+               ("Davies-Bouldin Index", "Lower is Better"),
                ("Calinski-Harabasz Index", "Higher is Better")]
 
     for i, (metric, interpretation) in enumerate(metrics):
-        sns.barplot(data=summary_df, x='Dataset', y=metric, hue='Model', ax=axes[i])
+        # Sorting the dataframe for clearer plotting
+        sorted_df = summary_df.sort_values(by=['Dataset', 'Silhouette Score'], ascending=[True, False])
+        sns.barplot(data=sorted_df, x='Dataset', y=metric, hue='Model', ax=axes[i],
+                    hue_order=MODELS) # Ensure consistent color mapping
         axes[i].set_title(f'{metric}\n({interpretation})', fontsize=14)
         axes[i].set_xlabel("Dataset", fontsize=12)
         axes[i].set_ylabel("Score", fontsize=12)
-        axes[i].tick_params(axis='x', rotation=15)
+        axes[i].tick_params(axis='x', rotation=0)
         if i == 0:
             axes[i].legend(title='Model', bbox_to_anchor=(1.05, 1), loc='upper left')
         else:
             axes[i].get_legend().remove()
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 0.9, 1])
     plt.show()
 
 
 # **Interpretation:**
-# The visualizations clearly show that the GNN-based methods (GAE and DGI) consistently outperform the traditional `Feature-Based_Roles` approach across all datasets and nearly all metrics. Between the two GNN methods, there isn't a single clear winner; their performance is competitive, with GAE slightly ahead expecially for the Actor and cluster datasets.
+# 
 
 # ## 2\. Analysis of the "Actor" Dataset
 # 
@@ -108,10 +120,13 @@ if not summary_df.empty:
 # To select the best number of roles, $k$, for each model, we plot the Silhouette Score against different values of $k$ that were tested. A peak or an "elbow" in the plot suggests an optimal value for $k$.
 # 
 
-# In[4]:
+# In[73]:
 
 
-fig, ax = plt.subplots(figsize=(14, 7))
+best_k_series = summary_df.set_index(['Dataset', 'Model'])['Best k']
+actor_best_k = best_k_series.loc['Actor']
+
+fig, ax = plt.subplots(figsize=(14, 8))
 
 for model_name in MODELS:
     metrics_path = RESULTS_DIR / f"Actor/{model_name}_clustering_metrics.csv"
@@ -124,13 +139,14 @@ ax.set_xlabel('Number of Roles (k)', fontsize=12)
 ax.set_ylabel('Silhouette Score (Higher is better)', fontsize=12)
 ax.set_xticks(df['k'].unique())
 ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-ax.legend(title="Model")
+ax.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
 plt.show()
 
 
 # **Interpretation:**
 # 
-# For the "Actor" dataset, the GNN models (`GAE` and `DGI`) show their best performance at $k=3$, after which the score begins to decline. This indicates that three is likely the most natural number of distinct structural roles in this graph. The `Feature-Based_Roles` method peaks later at $k=5$, its much lower score implies these groupings are less coherent.
+# 
 
 # ### 2.2. Visualizing the Discovered Roles with t-SNE
 # t-SNE is a dimensionality reduction technique that allows us to visualize the high-dimensional node embeddings (or feature vectors) in 2D. In a good model, the nodes belonging to the same role should form distinct, well-separated visual clusters.
@@ -138,61 +154,61 @@ plt.show()
 # We will load and display the pre-generated t-SNE plots for the best $k$ value of each model.
 # 
 
-# In[5]:
+# In[74]:
 
 
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from pathlib import Path
-import pandas as pd
-
-fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+fig, axes = plt.subplots(2, 3, figsize=(24, 16))
+axes = axes.flatten()
 fig.suptitle("Comparison of t-SNE Role Visualizations on the 'Actor' Dataset", fontsize=22)
 
-best_k_series = summary_df[summary_df['Dataset'] == 'Actor'].set_index('Model')['Best k']
-
-for ax, model_name in zip(axes.flatten(), MODELS):
-    if model_name in best_k_series:
-        k = best_k_series[model_name]
+for i, model_name in enumerate(MODELS):
+    ax = axes[i]
+    if model_name in actor_best_k:
+        k = actor_best_k[model_name]
         image_path = RESULTS_DIR / f"Actor/{model_name}_k{k}_tsne.png"
-
         ax.set_title(f"{model_name}\n(Best k={k})", fontsize=16, pad=10)
 
         if image_path.exists():
             img = mpimg.imread(image_path)
             ax.imshow(img)
         else:
-            ax.text(0.5, 0.5, f'Image not found', ha='center', va='center', fontsize=12)
-
+            ax.text(0.5, 0.5, 'Image not found', ha='center', va='center', fontsize=12)
+    else:
+        ax.set_visible(False)
     ax.axis('off')
 
-plt.tight_layout(rect=[0, 0, 1, 0.95])
+for j in range(i + 1, len(axes)):
+    axes[j].set_visible(False)
+
+plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
 
 # 
 # **Interpretation:** 
-# The t-SNE visualizations provide strongly reinforcing the quantitative metrics. The `Feature-Based_Roles` model results in a chaotic plot with heavily overlapping and poorly defined clusters, visually explaining its low Silhouette Score. In stark contrast, both the `GNN_Embedder_GAE` and `GNN_Embedder_DGI` models generate remarkably clean plots with distinct, well-separated groups, confirming that their learned embeddings are far more effective for discovering meaningful structural roles.
 # 
-# Comparing the top two methods, the GAE model produces exceptionally sharp, linear structures, while the DGI model forms more globular clusters. Both are excellent representations, but the GAE’s visual separation is slightly crisper, aligning with its higher score. Ultimately, these visualizations provide powerful qualitative proof that the GNNs successfully learned low-dimensional embeddings that effectively capture and separate the distinct structural roles within the Actor network.
 
 # ### 2.3. Interpreting Role Characteristics
 # Moving beyond scores and visualizations to understand *what these roles represent*. We load the analysis files, which contain the average structural properties (degree, betweenness, etc.) for nodes within each role. By examining these properties, we can assign intuitive labels.
 
-# In[6]:
+# In[75]:
 
 
 def plot_role_profiles(df, dataset_name, model_name, k, ax):
     metrics_to_plot = ['avg_degree', 'avg_betweenness', 'avg_closeness', 'avg_eigenvector', 'avg_clustering_coeff']
     profiles = df[metrics_to_plot]
-    profiles_normalized = (profiles - profiles.min()) / (profiles.max() - profiles.min())
-    profiles_normalized = profiles_normalized.fillna(0) 
+
+    min_vals = profiles.min()
+    range_vals = profiles.max() - min_vals
+    range_vals[range_vals == 0] = 1.0
+    profiles_normalized = (profiles - min_vals) / range_vals
+    profiles_normalized = profiles_normalized.fillna(0)
 
     labels = profiles_normalized.columns
     num_vars = len(labels)
 
     angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-    angles += angles[:1] 
+    angles += angles[:1]
 
     cmap = plt.get_cmap('plasma')
     colors = cmap(np.linspace(0, 1, len(df)))
@@ -201,46 +217,41 @@ def plot_role_profiles(df, dataset_name, model_name, k, ax):
     ax.set_theta_direction(-1)
 
     ax.set_rlabel_position(0)
-    ax.set_xticks(angles[:-1], labels, size=10)
+    ax.set_xticks(angles[:-1], labels, size=11)
     ax.set_yticks([0.2, 0.4, 0.6, 0.8])
-    ax.set_yticklabels(["0.2", "0.4", "0.6", "0.8"], color="grey", size=8)
+    ax.set_yticklabels(["0.2", "0.4", "0.6", "0.8"], color="grey", size=9)
 
     for i, row in profiles_normalized.iterrows():
         values = row.values.flatten().tolist()
-        values += values[:1] 
-        ax.plot(angles, values, color=colors[i], linewidth=2, linestyle='solid', label=f"Role {df.at[i, 'role_id']}")
-        ax.fill(angles, values, color=colors[i], alpha=0.25)
+        values += values[:1]
+        ax.plot(angles, values, color=colors[i], linewidth=2.5, linestyle='solid', label=f"Role {df.at[i, 'role_id']}")
+        ax.fill(angles, values, color=colors[i], alpha=0.3)
 
-    ax.set_title(f"{model_name} (k={k})", pad=20, fontsize=14)
-    ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
+    ax.legend(loc='upper right', bbox_to_anchor=(0.15, 0.15))
 
-fig, axes = plt.subplots(1, 3, figsize=(22, 7), subplot_kw=dict(polar=True))
-fig.suptitle('Structural Role Profiles on Actor Dataset', fontsize=20, y=1.1)
+best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Actor']['Silhouette Score'].idxmax()]['Model']
+k = actor_best_k[best_model_name]
+analysis_path = RESULTS_DIR / f"Actor/{best_model_name}_k{k}_role_analysis.csv"
 
-for i, model_name in enumerate(MODELS):
-    if model_name in best_k_series:
-        k = best_k_series[model_name]
-        analysis_path = RESULTS_DIR / f"Actor/{model_name}_k{k}_role_analysis.csv"
-        if analysis_path.exists():
-            role_df = pd.read_csv(analysis_path)
-            print(f"\n--- Analysis for {model_name} (k={k}) ---")
-            display(role_df)
-            plot_role_profiles(role_df, "Actor", model_name, k, axes[i])
-        else:
-            print(f"Analysis file not found for {model_name}")
-            fig.delaxes(axes[i]) 
+fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+fig.suptitle(f'Structural Role Profiles on Actor Dataset\n(Best Model: {best_model_name})', fontsize=18)
 
-plt.tight_layout()
+if analysis_path.exists():
+    role_df = pd.read_csv(analysis_path)
+    print(f"\n--- Analysis for {best_model_name} (k={k}) ---")
+    display(role_df)
+    plot_role_profiles(role_df, "Actor", best_model_name, k, ax)
+else:
+    ax.set_visible(False)
+    print(f"Analysis file not found for {best_model_name}")
+
+plt.tight_layout(pad=3.0)
 plt.show()
 
 
 # **Interpretation of GNN\_Embedder\_GAE (k=3) on Actor:**
 # 
 # Based on the table and the radar chart for the `GNN_Embedder_GAE` model:
-# 
-#   - **Role 0 (Periphery Nodes, \~6737 nodes)**: This is the largest group. It is characterized by extremely low values across all centrality metrics (`avg_degree`, `avg_betweenness`, `avg_closeness`, `avg_eigenvector`). These are the vast majority of actors who are not well-connected and exist on the fringes of the network.
-#   - **Role 1 (Connectors/Brokers, \~862 nodes)**: This group has moderately high values for `avg_degree` and `avg_betweenness` relative to the periphery. The high betweenness suggests these actors play a crucial role in connecting different parts of the network, acting as bridges or brokers between different communities (e.g., genres or film series).
-#   - **Role 2 (Super-Hub, 1 node)**: This role contains a single node with exceptionally high values for every single centrality metric. Its `avg_betweenness` and `avg_eigenvector` scores dominate all others. This is the ultimate "hub" of the network, a superstar actor who is not only highly connected but is also connected to other important actors, making them central to the entire graph structure.
 # 
 
 # ### 2.4. Analyzing Role Interactions with Adjacency Matrices
@@ -254,71 +265,93 @@ plt.show()
 # 
 # 
 
-# In[11]:
+# In[76]:
 
+
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+
+try:
+    best_model_name
+except NameError:
+    print("Warning: 'best_model_name' not defined. Calculating it now.")
+    best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Actor']['Silhouette Score'].idxmax()]['Model']
 
 fig, ax = plt.subplots(1, 1, figsize=(10, 8))
 
-model_name = 'GNN_Embedder_GAE'
+model_to_plot = best_model_name
 dataset_name = 'Actor'
-k = best_k_series.get(model_name)
 
-if k:
-    norm_path = RESULTS_DIR / f"{dataset_name}/{model_name}_k{k}_role_adj_heatmap_normalized.png"
-    ax.set_title(f"Normalized Role Connectivity for {model_name} (k={k}) on {dataset_name}", fontsize=18, pad=15)
+if model_to_plot in actor_best_k:
+    k = actor_best_k[model_to_plot]
+
+    norm_path = RESULTS_DIR / f"{dataset_name}/{model_to_plot}_k{k}_role_adj_heatmap_normalized.png"
+
+    ax.set_title(f"Normalized Role Connectivity for {model_to_plot} (k={k})", fontsize=16, pad=15)
+
     if norm_path.exists():
         img_norm = mpimg.imread(norm_path)
         ax.imshow(img_norm)
     else:
-        ax.text(0.5, 0.5, 'Image not found', ha='center', va='center')
+        ax.text(0.5, 0.5, f'Image not found at:\n{norm_path}', ha='center', va='center', wrap=True)
+
     ax.axis('off')
 else:
-    print(f"Could not find best k for {model_name} on {dataset_name}")
+    print(f"Could not find best k for '{model_to_plot}' on {dataset_name}")
     ax.axis('off')
 
 plt.show()
 
 
-# * **Role 2 is a distinct "Super-Hub"**: This role directs almost all of its connections (91%) outward to Role 0 and has virtually no connections to itself or Role 1. This confirms its function as a central hub connecting to the broader network periphery.
 # 
-# * **Role 1 acts as a "Connector/Bridge"**: This role's connections are primarily directed towards Role 0 (61%), with a smaller portion connecting to other nodes within its own role (39%). This pattern is characteristic of a bridging role that links the peripheral nodes (Role 0) together.
+# The heatmap generated by our best-performing model, `GNN_Embedder_DGI_Graphlets`, reveals a clear and distinct structural pattern within the Actor network.
 # 
-# * **Role 0 represents the "Periphery"**: These nodes are moderately insular, with a significant number of connections (54%) to other nodes within Role 0, forming local communities. They also connect extensively to the "connector" nodes of Role 1 (42%), which links them to the wider graph structure.
+#   * **Role 0 acts as the central "Core" of the network.** This role is intensely insular, with **99%** of its connections being internal to itself (the bright cell at `[Role 0, Role 0]`). This indicates that Role 0 represents a massive, densely interconnected component—likely the mainstream actors who frequently collaborate.
+# 
+#   * **Role 1 and Role 2 are distinct "Satellite" groups.** The most striking finding is the behavior of Roles 1 and 2.
+# 
+#       * **Role 1** directs **100%** of its connections exclusively to the "Core" (Role 0). It has zero connections to other nodes in Role 1 or to any nodes in Role 2.
+#       * **Role 2** behaves almost identically, directing **99%** of its connections to the "Core" (Role 0).
+# 
 
 # ## 3. Bridging Structure and Semantics: Case Study on Cora
 # 
-# So far, our analysis has been purely structural. For datasets with node labels, like Cora, we can take the analysis one step further and investigate whether the structurally-defined roles have a distinct **semantic meaning**. In the Cora dataset, nodes are research papers and the labels (`data.y`) represent the paper's subject area.
+# So far, our analysis has been purely structural. The `GNN_Embedder_DGI_Graphlets` model, which we identified as the top performer on real-world datasets, was trained using only the graph's structure (via graphlet features) and had no access to the actual content or subject area of the papers in the Cora dataset.
 # 
-# Our GNN models discovered roles using only the graph's structure (node degrees), without any knowledge of the paper subjects.
+# This allows us to ask a question: **Do the purely structural roles discovered by our best model correspond to distinct semantic fields?** In other words, do papers in "Neural Networks" have a different structural signature in the citation graph than papers on "Genetic Algorithms"?
 # 
-# > Does a node's structural role correlate with its academic field?
+# Answering this will reveal the relationship between a paper's structural role (e.g., foundational paper, survey paper, niche paper) and its academic subject.
 # 
-# We will use the best performing model for Cora, `GNN_Embedder_DGI` (k=3), to find out.
 
 # In[ ]:
 
 
-#1. Setup and Data Loading 
-import sys
 from torch_geometric.datasets import Planetoid
 import torch
+from pathlib import Path
+from IPython.display import display
+import pandas as pd
+import matplotlib.pyplot as plt
+import sys
+import matplotlib.ticker as mticker # Import for y-axis formatting
+
+from role_discovery.models.GNNEmbedder import GNNEmbedder
+from role_discovery.models.DGIEmbedder import DGIEmbedder
+from role_discovery.models.FeatureBasedRoles import FeatureBasedRoles
+from role_discovery.models.FeatureBasedRolesGraphlets import FeatureBasedRolesGraphlets
+from role_discovery.models.GNNEmbedderGraphlets import GNNEmbedderGraphlets
+from role_discovery.models.DGIEmbedderGraphlets import DGIEmbedderGraphlets
+from role_discovery.utils.experiment_utils import clean_params
 
 project_root = str(Path().resolve().parent)
 if project_root not in sys.path:
     print(f"Adding project root to path: {project_root}")
     sys.path.append(project_root)
 
-from role_discovery.models.DGIEmbedder import DGIEmbedder
-from role_discovery.utils.experiment_utils import clean_params
-
 cora_subject_names = {
-    0: 'Theory',
-    1: 'Reinforcement_Learning',
-    2: 'Genetic_Algorithms',
-    3: 'Neural_Networks',
-    4: 'Probabilistic_Methods',
-    5: 'Case_Based',
-    6: 'Rule_Learning'
+    0: 'Theory', 1: 'Reinforcement Learning', 2: 'Genetic Algorithms',
+    3: 'Neural Networks', 4: 'Probabilistic Methods', 5: 'Case-Based',
+    6: 'Rule-Learning'
 }
 
 dataset = Planetoid(root='/tmp/Cora', name='Cora')
@@ -328,77 +361,105 @@ data = dataset[0]
 # In[ ]:
 
 
-# 2. Load the Best Model and Get Role Assignments 
-model_name = "GNN_Embedder_DGI"
 dataset_name = "Cora"
-best_k = 3
+cora_summary = summary_df[summary_df['Dataset'] == dataset_name]
+best_model_name = cora_summary.loc[cora_summary['Silhouette Score'].idxmax()]['Model']
+print(f"The best performing model for {dataset_name} is: '{best_model_name}'")
 
-tuning_results_path = RESULTS_DIR / dataset_name / "hyperparameter_tuning_results.csv"
-tuning_df = pd.read_csv(tuning_results_path)
-dgi_results = tuning_df[tuning_df['model_name'] == model_name]
-raw_dgi_params = dgi_results.iloc[0].to_dict()
-dgi_params = clean_params({k: v for k, v in raw_dgi_params.items() if k not in ['model_name', 'best_silhouette']})
+cora_best_k_series = best_k_series.loc['Cora']
+best_k = cora_best_k_series[best_model_name]
 
-print(f"Loading best {model_name} with params: {dgi_params}")
+model_class_map = {
+    'GNN_Embedder_GAE': GNNEmbedder,
+    'GNN_Embedder_DGI': DGIEmbedder,
+    'Feature-Based_Roles': FeatureBasedRoles,
+    'Feature-Based_Roles_Graphlets': FeatureBasedRolesGraphlets,
+    'GNN_Embedder_GAE_Graphlets': GNNEmbedderGraphlets,
+    'GNN_Embedder_DGI_Graphlets': DGIEmbedderGraphlets
+}
 
-model = DGIEmbedder(
-    in_channels=data.num_features,
-    **dgi_params,
-    model_path=str(RESULTS_DIR / dataset_name / f"best_{model_name}_model.pt"),
-    force_retrain=False
-)
+ModelClass = model_class_map.get(best_model_name)
+model = None
 
-embeddings, role_labels = model.predict(data, k=best_k)
-print(f"\nSuccessfully assigned {data.num_nodes} nodes to {best_k} roles.")
+if 'GNN' in best_model_name:
+    print("Best model is a GNN. Loading hyperparameters...")
+    tuning_results_path = RESULTS_DIR / dataset_name / "hyperparameter_tuning_results.csv"
+    tuning_df = pd.read_csv(tuning_results_path)
+    model_tuning_results = tuning_df[tuning_df['model_name'] == best_model_name]
+
+    if not model_tuning_results.empty:
+        best_model_params_raw = model_tuning_results.iloc[0].to_dict()
+        params = clean_params({k: v for k, v in best_model_params_raw.items() if k not in ['model_name', 'best_silhouette', 'emb_dim', 'in_channels']})
+        print(f"Loading model with k={best_k} and params: {params}")
+
+        init_params = {
+            **params,
+            "model_path": str(RESULTS_DIR / dataset_name / f"best_{best_model_name}_model.pt"),
+            "force_retrain": False
+        }
+        if best_model_name == 'GNN_Embedder_DGI':
+            init_params['in_channels'] = data.num_features
+
+        model = ModelClass(**init_params)
+    else:
+        print(f"ERROR: GNN model '{best_model_name}' not found in tuning results file.")
+
+else: 
+    print(f"Best model is feature-based. Instantiating '{best_model_name}' directly.")
+    model = ModelClass()
 
 
-# In[21]:
+# In[87]:
 
 
-# 3. Analyze and Visualize Subject Distribution per Role 
-semantic_df = pd.DataFrame({
-    'role_id': role_labels.numpy(),
-    'subject_id': data.y.numpy()
-})
-semantic_df['subject_name'] = semantic_df['subject_id'].map(cora_subject_names)
+if model:
+    embeddings, role_labels = model.predict(data, k=best_k)
+    print(f"\nSuccessfully assigned {data.num_nodes} nodes to {best_k} roles using {best_model_name}.")
 
-crosstab = pd.crosstab(semantic_df['role_id'], semantic_df['subject_name'])
-crosstab_norm = crosstab.div(crosstab.sum(axis=1), axis=0)
+    semantic_df = pd.DataFrame({
+        'role_id': role_labels.numpy(),
+        'subject_id': data.y.numpy()
+    })
+    semantic_df['subject_name'] = semantic_df['subject_id'].map(cora_subject_names)
 
-print("\n--- Subject Distribution within Each Structural Role ---")
-display(crosstab_norm.style.format("{:.2%}"))
+    crosstab = pd.crosstab(semantic_df['role_id'], semantic_df['subject_name'])
+    crosstab_norm = crosstab.div(crosstab.sum(axis=1), axis=0)
+
+    print("\n--- Subject Distribution within Each Structural Role ---")
+    display(crosstab_norm.style.format("{:.2%}"))
 
 
 # Although the GNN model was only given the network structure, the roles it discovered correspond to distinct subject distributions.
 # 
-# Notably, Role 0 is predominantly composed of papers on Neural Networks, while Role 2 has a higher concentration of papers in Genetic Algorithms and Theory. This demonstrates that the model successfully identified that different academic fields create unique structural footprints within the citation graph
+# * **Role 1:** This was a remarkable discovery, consisting **100%** of papers on "Genetic Algorithms." This indicates that the citation patterns within this field are so unique that they create a distinct structural footprint that the model could perfectly isolate.
+# 
+# * **Role 2:** This role captured a "meta-role" of closely related AI topics, primarily grouping "Neural Networks" (38%), "Reinforcement Learning" (31%), and other related papers. The model correctly identified that these fields share a common structure in the citation network.
+# 
+# * **Role 0:** This larger, more diverse role represents the interdisciplinary core of the network, containing a mix of all subjects.
 
-# In[25]:
+# In[ ]:
 
 
-fig, ax = plt.subplots(figsize=(12, 6))
-crosstab_norm.plot(
-    kind='bar',
-    stacked=True,
-    ax=ax,
-    cmap='rocket',
-    width=0.8
-)
+if model:
+    fig, ax = plt.subplots(figsize=(14, 7))
+    crosstab_norm.plot(
+        kind='bar',
+        stacked=True,
+        ax=ax,
+        cmap='rocket',
+        width=0.8
+    )
 
-ax.set_title('Semantic Analysis: Paper Subject Distribution per Structural Role on Cora', fontsize=18, pad=15)
-ax.set_xlabel('Discovered Structural Role ID', fontsize=14)
-ax.set_ylabel('Proportion of Papers', fontsize=14)
-ax.tick_params(axis='x', rotation=0)
-ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.0%}'))
-plt.legend(title='Paper Subject', bbox_to_anchor=(1.02, 1), loc='upper left')
-plt.tight_layout(rect=[0, 0, 0.88, 1])
-plt.show()
+    ax.set_title(f'Semantic Analysis: Paper Subject Distribution per Structural Role on Cora\n(Model: {best_model_name})', fontsize=18, pad=15)
+    ax.set_xlabel('Discovered Structural Role ID', fontsize=14)
+    ax.set_ylabel('Proportion of Papers', fontsize=14)
+    ax.tick_params(axis='x', rotation=0)
+    ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=1.0)) 
+    plt.legend(title='Paper Subject', bbox_to_anchor=(1.02, 1), loc='upper left')
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.show()
 
 
 # ## 3\. Conclusions
 # 
-# The analysis yields several key conclusions:
 # 
-# 1.  **GNNs are Superior for Role Discovery**: Both GNN-based methods, GAE and DGI, significantly outperformed the traditional feature-based approach. The learned embeddings capture complex structural patterns that are missed by a hand-picked set of metrics, resulting in more cohesive and well-separated roles.
-# 
-# 2.  **Role Interpretability is High**: By analyzing the structural characteristics of the nodes within each GNN-discovered role, we were able to assign meaningful labels like "hub," "broker," and "periphery." This confirms that the unsupervised learning process is identifying functionally relevant node groups.

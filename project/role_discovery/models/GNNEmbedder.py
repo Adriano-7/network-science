@@ -63,8 +63,8 @@ class GNNEmbedder(RoleDiscoveryModel):
         torch.manual_seed(self.seed)
         split_transform = T.RandomLinkSplit(
             num_val=self.val_ratio, num_test=self.test_ratio,
-            is_undirected=True, add_negative_train_samples=True,
-            split_labels=True  
+            is_undirected=True, add_negative_train_samples=False,
+            split_labels=True
         )
         train_data, val_data, _ = split_transform(structural_data)
 

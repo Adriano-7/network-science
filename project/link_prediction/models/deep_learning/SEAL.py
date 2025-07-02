@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data, Batch
+from torch_geometric.data import Data
 from torch_geometric.utils import k_hop_subgraph, to_networkx
 from torch_geometric.nn import GCNConv, global_mean_pool
 import networkx as nx
@@ -133,7 +133,6 @@ class SEALModel(LinkPredictionModel):
              print("Warning: No valid subgraphs could be extracted for training.")
              return 0.0
 
-        # This is the line that was corrected
         train_loader = DataLoader(
             list(zip(filtered_subgraphs, train_labels)), batch_size=64, shuffle=True)
 

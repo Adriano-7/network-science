@@ -87,9 +87,7 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         weights='uniform',
         metric='euclidean',
     )
-
-
-    gcn = GCNModel1(
+    gcn = GCNModel2(
         in_channels=num_node_features,
         epochs=500,
         patience=50,
@@ -98,7 +96,7 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         emb_dim=32,
         lr=0.007,
     )
-    graphsage = GraphSAGEModel1(
+    graphsage = GraphSAGEModel2(
         in_channels=num_node_features,
         epochs=500,
         patience=50,
@@ -107,7 +105,6 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         emb_dim=128,
         lr=0.001,
     )
-
     seal = SEALModel(
         in_channels=num_node_features + 2,
         hidden_channels=32,
@@ -132,7 +129,7 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         # knn,
         # gcn,
         # graphsage,
-        seal,
+        # seal,
     ]
 
     for model in models_to_run:
@@ -142,7 +139,7 @@ def main():
     print("Initializing experiment suite")
 
     datasets_to_test = [
-        'Cora',
+        # 'Cora',
         # 'Citeseer',
         # 'Twitch-EN',
         # 'Twitch-DE',

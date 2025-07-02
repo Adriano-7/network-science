@@ -97,6 +97,10 @@ def main(dataset_name):
     output_file = "results/tune/gnns.csv"
 
     models_to_tune = {
+        # 'GCNModel1': GCNModel1,
+        # 'GraphSAGEModel1': GraphSAGEModel1,
+        # 'GCNModel2': GCNModel2,
+        # 'GraphSAGEModel2': GraphSAGEModel2,
         'SEALModel': SEALModel,
     }
 
@@ -129,8 +133,8 @@ def main(dataset_name):
 
 if __name__ == '__main__':
     datasets = [
-        'Cora', 
-        'Citeseer', 
+        # 'Cora', 
+        # 'Citeseer', 
         # 'Twitch-EN', 
         # 'Twitch-DE'
     ]

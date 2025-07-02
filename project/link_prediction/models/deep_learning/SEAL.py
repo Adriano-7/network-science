@@ -46,20 +46,19 @@ class SEALModel(LinkPredictionModel):
 
     def _extract_subgraph(self, graph_data, edge):
         u, v = edge[0].item(), edge[1].item()
-        
-        subset, sub_edge_index, mapping, edge_mask = k_hop_subgraph(
+
+        subset, sub_edge_index, _, _ = k_hop_subgraph(
             torch.tensor([u, v]), self.num_hops, graph_data.edge_index, relabel_nodes=True)
-        
+
         if subset.numel() == 0:
             return None
-            
+
         sub_x = graph_data.x[subset]
-        
-        u_new, v_new = mapping[0].item(), mapping[1].item()
-        
+        u_new, v_new = (subset == u).nonzero().item(), (subset == v).nonzero().item()
+
         g = to_networkx(Data(edge_index=sub_edge_index, num_nodes=subset.size(0)), to_undirected=True)
-        
-        drnl_label = torch.zeros(subset.size(0), 2, dtype=torch.long)
+
+        drnl_label = torch.zeros(subset.size(0), 2, dtype=torch.float)
         try:
             path_u = nx.shortest_path_length(g, source=u_new)
             path_v = nx.shortest_path_length(g, source=v_new)
@@ -69,13 +68,13 @@ class SEALModel(LinkPredictionModel):
         except nx.NodeNotFound:
             return None
 
-        drnl_label = drnl_label.float() / (self.num_hops + 1)
-        
+        drnl_label /= (self.num_hops + 1)
+
         if self.use_feature and sub_x is not None:
             subgraph_x = torch.cat([sub_x, drnl_label.to(sub_x.device)], dim=-1)
         else:
             subgraph_x = drnl_label
-            
+
         return Data(x=subgraph_x, edge_index=sub_edge_index)
 
     @torch.no_grad()
@@ -107,7 +106,7 @@ class SEALModel(LinkPredictionModel):
             batch = batch.to(device)
             neg_scores.append(self.model(batch.x, batch.edge_index, batch.batch).sigmoid())
         neg_scores = torch.cat(neg_scores, dim=0).cpu()
-        
+
         ranks = (pos_scores.view(-1, 1) <= neg_scores.view(1, -1)).float().sum(dim=1) + 1
         mrr = (1.0 / ranks).mean().item()
         return mrr
@@ -119,7 +118,7 @@ class SEALModel(LinkPredictionModel):
 
         all_edges = torch.cat([pos_edges, neg_edges], dim=0)
         train_subgraphs = [self._extract_subgraph(train_data, edge) for edge in all_edges]
-        
+
         train_labels_list = []
         filtered_subgraphs = []
         for i, g in enumerate(train_subgraphs):
@@ -130,8 +129,8 @@ class SEALModel(LinkPredictionModel):
         train_labels = torch.tensor(train_labels_list, dtype=torch.float)
 
         if not filtered_subgraphs:
-             print("Warning: No valid subgraphs could be extracted for training.")
-             return 0.0
+            print("Warning: No valid subgraphs could be extracted for training.")
+            return 0.0
 
         train_loader = DataLoader(
             list(zip(filtered_subgraphs, train_labels)), batch_size=64, shuffle=True)
@@ -139,7 +138,7 @@ class SEALModel(LinkPredictionModel):
         best_val_mrr = 0
         patience_counter = 0
         best_model_state = None
-        
+
         print("Starting SEAL model training...")
         for epoch in range(1, self.epochs + 1):
             self.model.train()
@@ -147,7 +146,6 @@ class SEALModel(LinkPredictionModel):
             for subgraphs, labels in train_loader:
                 subgraphs = subgraphs.to(device)
                 labels = labels.to(device)
-                
                 self.optimizer.zero_grad()
                 out = self.model(subgraphs.x, subgraphs.edge_index, subgraphs.batch).squeeze()
                 loss = self.criterion(out, labels)
@@ -165,16 +163,16 @@ class SEALModel(LinkPredictionModel):
                     patience_counter = 0
                 else:
                     patience_counter += 1
-                
+
                 if patience_counter >= self.patience:
                     print(f"Early stopping at epoch {epoch}.")
                     break
-        
+
         if best_model_state:
             print(f"Training finished. Loading best model with Val MRR: {best_val_mrr:.4f}")
             self.model.load_state_dict(best_model_state)
-            return best_val_mrr 
-        return 0.0
+        
+        return best_val_mrr
 
     def predict_edges(self, graph_data, edges_to_predict):
         self.model.eval()

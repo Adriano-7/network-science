@@ -1,0 +1,2 @@
+dataset,lr,hidden_channels,emb_dim,dropout,num_hops,use_feature,best_mrr_val
+cora,0.0005,32,32,0.34,2,True,0.3605

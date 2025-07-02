@@ -13,6 +13,7 @@ from models.deep_learning.GCN1 import GCNModel1
 from models.deep_learning.GraphSAGE1 import GraphSAGEModel1
 from models.deep_learning.GCN2 import GCNModel2
 from models.deep_learning.GraphSAGE2 import GraphSAGEModel2
+from models.deep_learning.SEAL import SEALModel
 
 
 def run_experiment(model: LinkPredictionModel, dataset_manager: DatasetManager, evaluator: Evaluator):
@@ -107,6 +108,19 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         lr=0.001,
     )
 
+    seal = SEALModel(
+        in_channels=num_node_features + 2,
+        hidden_channels=32,
+        emb_dim=32,
+        num_hops=2,
+        epochs=100,
+        lr=0.001,
+        dropout=0.5,
+        patience=10,
+        use_feature=True
+    )
+
+
     models_to_run = [
         # CommonNeighborsModel(),
         # JaccardIndexModel(),
@@ -118,6 +132,7 @@ def run_experiments_on_dataset(dataset_name: str, seed: int = 42):
         # knn,
         # gcn,
         # graphsage,
+        seal,
     ]
 
     for model in models_to_run:
@@ -127,7 +142,7 @@ def main():
     print("Initializing experiment suite")
 
     datasets_to_test = [
-        # 'Cora',
+        'Cora',
         # 'Citeseer',
         # 'Twitch-EN',
         # 'Twitch-DE',

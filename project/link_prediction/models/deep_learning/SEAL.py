@@ -6,7 +6,6 @@ from torch_geometric.utils import k_hop_subgraph, to_networkx
 from torch_geometric.nn import GCNConv, global_mean_pool
 import networkx as nx
 import copy
-
 from ..LinkPredModel import LinkPredictionModel
 
 if torch.backends.mps.is_available():
@@ -15,7 +14,7 @@ else:
     device = torch.device("cpu")
 
 class SEAL_GNN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, dropout):
+    def __init__(self, in_channels, hidden_channels, emb_dim, dropout):
         super().__init__()
         self.dropout = dropout
         self.conv1 = GCNConv(in_channels, hidden_channels)

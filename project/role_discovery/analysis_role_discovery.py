@@ -35,6 +35,8 @@ import matplotlib.image as mpimg
 import matplotlib.gridspec as gridspec
 import networkx as nx
 from torch_geometric.utils import to_networkx
+from scipy.spatial.distance import cdist
+
 project_root = str(Path().resolve().parent)
 if project_root not in sys.path:
     print(f"Adding project root to path: {project_root}")
@@ -110,7 +112,7 @@ if not summary_df.empty:
 #   - **Calinski-Harabasz Index**: Higher is better. The ratio of between-cluster dispersion to within-cluster dispersion.
 # 
 
-# In[4]:
+# In[ ]:
 
 
 if not summary_df.empty:
@@ -233,7 +235,7 @@ plt.show()
 # ### 2.3. Interpreting Role Characteristics
 # Moving beyond scores and visualizations to understand *what these roles represent*. We load the analysis files, which contain the average structural properties (degree, betweenness, etc.) for nodes within each role. By examining these properties, we can assign intuitive labels.
 
-# In[ ]:
+# In[7]:
 
 
 def plot_role_profiles(df, dataset_name, model_name, k, ax):
@@ -272,12 +274,16 @@ def plot_role_profiles(df, dataset_name, model_name, k, ax):
     ax.legend(loc='upper right', bbox_to_anchor=(0.15, 0.15))
 
 
-# In[ ]:
+# In[8]:
 
 
 best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Cora']['Silhouette Score'].idxmax()]['Model']
 k = cora_best_k[best_model_name]
 analysis_path = RESULTS_DIR / f"Cora/{best_model_name}_k{k}_role_analysis.csv"
+
+embeddings, role_labels = None, None
+G = None
+features_df = None
 
 if not analysis_path.exists():
     print(f"Analysis file not found for {best_model_name}. Cannot generate plots.")
@@ -291,7 +297,7 @@ else:
 
     ModelClass = MODELS_TO_CLASSES.get(best_model_name)
     model_instance = ModelClass()
-    _, role_labels = model_instance.predict(data, k=k)
+    embeddings, role_labels = model_instance.predict(data, k=k)
 
     G = to_networkx(data, to_undirected=True)
     print("Calculating centrality metrics... (This may take a moment)")
@@ -307,7 +313,7 @@ else:
     display(role_df)
 
 
-# In[ ]:
+# In[9]:
 
 
 if analysis_path.exists():
@@ -351,61 +357,82 @@ if analysis_path.exists():
 # 
 # * **Role 2 (Yellow) - "The Connectors":** This is a small, elite group of **13 nodes**. They exhibit a balanced profile with moderate-to-high centrality scores across the board, significantly higher than the periphery but well below the single global hub. These nodes act as important secondary hubs or bridges, likely connecting different research areas or representing significant papers within a large sub-field.
 
-# ### 2.4. Analyzing Role Interactions with Adjacency Matrices
+# ### 2.4. Understanding Role Behavior
 # 
-# While role profiles tell us about node properties *within* a role, they don't describe how roles connect *to each other*. To analyze this, we compute a **role-to-role adjacency matrix**.
+# While role profiles reveal the *internal character* of each role, the next crucial step is to understand their behavior from two different perspectives: their statistical separation and their structural interaction. The analysis below addresses two key questions:
 # 
-# - **Raw Counts Matrix**: The entry `(i, j)` shows the absolute number of edges connecting nodes from role `i` to nodes in role `j`.
-# - **Normalized Connectivity Matrix**: This matrix is row-normalized by the total degree sum of each role. The entry `(i, j)` represents the proportion of role `i`'s total connections (stubs) that go to role `j`. This reveals preferences:
-#   - A high diagonal value (`~1.0`) indicates an insular role (a community).
-#   - High off-diagonal values for a row `i` show it's a "bridge" or "connector" role.
+# 1.  **How well-defined are these roles?** (Left Plot)
+# 2.  **How do they interact with each other in the network?** (Right Plot)
 # 
+# **On the left, the "Role Cohesion & Separation" heatmap** quantifies the quality of the roles in the feature space. It uses the average cosine distance to measure how tightly-knit each role is and how distinct it is from others.
+# * **Reading this plot:**  **Low values on the diagonal** signify high internal cohesion (nodes in the role are similar) while **high values off the diagonal** signify clear separation between different roles.
+# 
+# **On the right, the "Role Interaction Patterns" heatmap** shows the normalized proportion of a role's total links that go to other roles.
+# * **Reading this plot:** A high value on the diagonal indicates a **self-contained, community-like role**. High off-diagonal values reveal a **connector or satellite role** whose primary function is to link to others.
 # 
 
-# In[ ]:
+# In[10]:
 
 
-try:
-    best_model_name
-except NameError:
-    print("Warning: 'best_model_name' not defined. Calculating it now.")
-    best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Cora']['Silhouette Score'].idxmax()]['Model']
+fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+fig.suptitle(f'Role Analysis for "{best_model_name}" on Cora', fontsize=20)
 
-fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+# Plot 1: Cosine Distance Heatmap (Left)
+if embeddings is not None and role_labels is not None:
+    k = len(np.unique(role_labels))
+    distance_matrix = np.zeros((k, k))
 
+    embeddings_np = embeddings.cpu().numpy()
+    role_labels_np = role_labels.cpu().numpy()
+
+    for i in range(k):
+        for j in range(i, k):
+            nodes_i = embeddings_np[role_labels_np == i]
+            nodes_j = embeddings_np[role_labels_np == j]
+
+            if nodes_i.shape[0] > 0 and nodes_j.shape[0] > 0:
+                pairwise_dists = cdist(nodes_i, nodes_j, 'cosine')
+                mean_dist = np.mean(pairwise_dists)
+                distance_matrix[i, j] = mean_dist
+                distance_matrix[j, i] = mean_dist
+
+    sns.heatmap(distance_matrix, annot=True, fmt=".3f", cmap="magma_r",
+                xticklabels=[f"Role {i}" for i in range(k)],
+                yticklabels=[f"Role {i}" for i in range(k)],
+                ax=axes[0])
+    axes[0].set_title("Role Cohesion & Separation\n(Avg. Cosine Distance)", fontsize=16)
+
+# Plot 2: Normalized Role Connectivity (Right)
 model_to_plot = best_model_name
 dataset_name = 'Cora'
 
 if model_to_plot in cora_best_k:
     k = cora_best_k[model_to_plot]
-
     norm_path = RESULTS_DIR / f"{dataset_name}/{model_to_plot}_k{k}_role_adj_heatmap_normalized.png"
 
-    ax.set_title(f"Normalized Role Connectivity for {model_to_plot} (k={k})", fontsize=16, pad=15)
+    axes[1].set_title("Role Interaction Patterns\n(Normalized Connectivity)", fontsize=16)
 
     if norm_path.exists():
         img_norm = mpimg.imread(norm_path)
-        ax.imshow(img_norm)
+        axes[1].imshow(img_norm)
     else:
-        ax.text(0.5, 0.5, f'Image not found at:\n{norm_path}', ha='center', va='center', wrap=True)
+        axes[1].text(0.5, 0.5, f'Image not found:\n{norm_path}', ha='center', va='center', wrap=True)
 
-    ax.axis('off')
-else:
-    print(f"Could not find best k for '{model_to_plot}' on {dataset_name}")
-    ax.axis('off')
+    axes[1].axis('off')
 
+plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
 
-# This heatmap of normalized role connectivity perfectly complements the previous analysis, moving from what the roles *are* to what they *do*. It reveals a clear and striking **Core-Satellite structure** within the Cora citation network.
+# * **Role 0 is the Central "Core":**
+#     * The **Interaction plot (right)** shows that Role 0 is highly insular, with **93%** of its connections remaining internal. This identifies it as the network's dense core.
+#     * The **Cohesion plot (left)** adds nuance: this large core is structurally distinct from the other roles (high distance of `1.4+`), but has some internal diversity (distance of `0.765`), as expected from a large body of mainstream papers.
 # 
-# * **Role 0 acts as the central "Core":** This role, which we labeled "The Periphery," is highly insular. The heatmap shows that **93%** of connections from Role 0 nodes link back to other nodes *within* Role 0 (the bright cell at `[0, 0]`). This confirms that it represents the massive, densely interconnected body of mainstream research papers in the dataset.
+# * **Roles 1 & 2 are Functionally Identical "Satellites":**
+#     * The **Interaction plot (right)**: both Role 1 and Role 2 behave as classic satellites, directing almost all their connections (`98%` and `96%` respectively) exclusively toward the core (Role 0). They have virtually no connections to each other or within themselves.
+#     * The **Cohesion plot (left)** reveals that these satellite roles are extremely well-defined and internally consistent, with very low internal distances (`0.000` and `0.095`).
 # 
-# * **Roles 1 and 2 are distinct "Satellite" groups:**
-#     * **Role 1 ** directs **98%** of its connections to the "Core" (Role 0). It has virtually no internal connections or connections to the other satellite role.
-#     * **Role 2 ** behaves almost identically, directing **96%** of its connections to the "Core" (Role 0).
-# 
-# This heatmap provides a powerful conclusion: our best-performing model did not simply find three separate communities. Instead, it identified a network architecture defined by function: a large core of standard papers (Role 0), a single foundational paper (Role 1), and a small group of bridging papers (Role 2), where the primary function of the latter two is to connect to and be cited by the main core.
+#  We have two distinct clusters of nodes (Roles 1 and 2) that are, functionally, almost identical—their job is to connect to the core. The Cohesion plot confirms this by showing that while they are separate roles, they are structurally much more similar to each other (distance of `0.210`) than they are to the core.
 
 # ## 3. Bridging Structure and Semantics
 # 
@@ -416,7 +443,7 @@ plt.show()
 # Answering this will reveal the relationship between a paper's structural role (e.g., foundational paper, survey paper, niche paper) and its academic subject.
 # 
 
-# In[ ]:
+# In[11]:
 
 
 cora_subject_names = {
@@ -431,7 +458,7 @@ data = dataset[0]
 print("\nCell executed successfully: All modules imported.")
 
 
-# In[ ]:
+# In[12]:
 
 
 dataset_name = "Cora"
@@ -482,7 +509,7 @@ else:
     model = ModelClass()
 
 
-# In[ ]:
+# In[13]:
 
 
 if model:
@@ -510,7 +537,7 @@ if model:
 # 
 # * **Role 0:** This larger, more diverse role represents the interdisciplinary core of the network, containing a mix of all subjects.
 
-# In[ ]:
+# In[14]:
 
 
 if model:

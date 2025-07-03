@@ -28,6 +28,38 @@ from pathlib import Path
 import warnings
 import sys
 from IPython.display import display
+from torch_geometric.datasets import Planetoid
+import torch
+import matplotlib.ticker as mticker
+import matplotlib.image as mpimg
+import matplotlib.gridspec as gridspec
+import networkx as nx
+from torch_geometric.utils import to_networkx
+project_root = str(Path().resolve().parent)
+if project_root not in sys.path:
+    print(f"Adding project root to path: {project_root}")
+    sys.path.append(project_root)
+
+from role_discovery.models.GNNEmbedder import GNNEmbedder
+from role_discovery.models.DGIEmbedder import DGIEmbedder
+from role_discovery.models.FeatureBasedRoles import FeatureBasedRoles
+from role_discovery.models.FeatureBasedRolesGraphlets import FeatureBasedRolesGraphlets
+from role_discovery.models.GNNEmbedderGraphlets import GNNEmbedderGraphlets
+from role_discovery.models.DGIEmbedderGraphlets import DGIEmbedderGraphlets
+from role_discovery.utils.experiment_utils import clean_params
+
+MODELS_TO_CLASSES = {
+    "Feature-Based_Roles": FeatureBasedRoles,
+    "Feature-Based_Roles_Graphlets": FeatureBasedRolesGraphlets,
+    "GNN_Embedder_GAE": GNNEmbedder,
+    "GNN_Embedder_GAE_Graphlets": GNNEmbedderGraphlets,
+    "GNN_Embedder_DGI": DGIEmbedder,
+    "GNN_Embedder_DGI_Graphlets": DGIEmbedderGraphlets
+}
+
+
+# In[2]:
+
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 sns.set_theme(style="whitegrid", palette="magma")
@@ -50,7 +82,7 @@ print(f"Datasets to Analyze: {DATASETS}")
 # ## 1\. High-Level Comparison Across All Datasets
 # 
 
-# In[2]:
+# In[3]:
 
 
 summary_path = RESULTS_DIR / "comparison_summary.csv"
@@ -78,7 +110,7 @@ if not summary_df.empty:
 #   - **Calinski-Harabasz Index**: Higher is better. The ratio of between-cluster dispersion to within-cluster dispersion.
 # 
 
-# In[ ]:
+# In[4]:
 
 
 if not summary_df.empty:
@@ -106,8 +138,6 @@ if not summary_df.empty:
     plt.show()
 
 
-# **Interpretation:**
-# 
 # The charts clearly demonstrate that **graphlet-based models** (e.g., *Feature-Based\_Roles\_Graphlets* and *GNN\_Embedder\_DGI\_Graphlets*) consistently outperform others across all three metrics—**Silhouette Score** (↑), **Davies-Bouldin Index** (↓), and **Calinski-Harabasz Index** (↑). This indicates they discover roles that are both cohesive and well-separated.
 # 
 # Notably, models that **combine graphlet features with GNNs** show the strongest results, confirming the effectiveness of **hybrid approaches**.
@@ -127,7 +157,7 @@ if not summary_df.empty:
 # To select the best number of roles, $k$, for each model, we plot the Silhouette Score against different values of $k$ that were tested. A peak or an "elbow" in the plot suggests an optimal value for $k$.
 # 
 
-# In[12]:
+# In[5]:
 
 
 best_k_series = summary_df.set_index(['Dataset', 'Model'])['Best k']
@@ -151,9 +181,6 @@ plt.tight_layout()
 plt.show()
 
 
-# ### Interpretation of Optimal Role Count (k) for Cora
-# 
-# 
 # For the top-performing models `Feature-Based_Roles_Graphlets` and `GNN_Embedder_DGI_Graphlets` the Silhouette Score peaks sharply at **k=3** and then consistently declines. This indicates that forcing the data into more than three roles leads to less dense and less meaningful clusters. The drop is particularly pronounced for the `Feature-Based_Roles_Graphlets` model, which achieves an exceptionally high score at k=3 before falling off.
 # 
 # While some of the other models show slightly different behavior, they all achieve significantly lower scores overall, making their structural groupings less distinct. The evidence overwhelmingly suggests that **3 is the optimal number of structural roles** for the Cora network, a conclusion strongly supported by the best-performing methods.
@@ -164,10 +191,8 @@ plt.show()
 # We will load and display the pre-generated t-SNE plots for the best $k$ value of each model.
 # 
 
-# In[13]:
+# In[6]:
 
-
-import matplotlib.image as mpimg
 
 fig, axes = plt.subplots(2, 3, figsize=(24, 16))
 axes = axes.flatten()
@@ -196,8 +221,6 @@ plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
 
-# ### Interpretation:
-# 
 # These t-SNE plots provide a visual confirmation of the quantitative results from the previous step. 
 # 
 # * **Excellent Separation (Graphlet-Based Models):** The two models using graphlet features, `Feature-Based_Roles_Graphlets` and `GNN_Embedder_DGI_Graphlets`, show clean visualizations.
@@ -210,7 +233,7 @@ plt.show()
 # ### 2.3. Interpreting Role Characteristics
 # Moving beyond scores and visualizations to understand *what these roles represent*. We load the analysis files, which contain the average structural properties (degree, betweenness, etc.) for nodes within each role. By examining these properties, we can assign intuitive labels.
 
-# In[14]:
+# In[ ]:
 
 
 def plot_role_profiles(df, dataset_name, model_name, k, ax):
@@ -223,7 +246,7 @@ def plot_role_profiles(df, dataset_name, model_name, k, ax):
     profiles_normalized = (profiles - min_vals) / range_vals
     profiles_normalized = profiles_normalized.fillna(0)
 
-    labels = profiles_normalized.columns
+    labels = ['Degree', 'Betweenness', 'Closeness', 'Eigenvector', 'Clustering Coeff.']
     num_vars = len(labels)
 
     angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
@@ -248,28 +271,78 @@ def plot_role_profiles(df, dataset_name, model_name, k, ax):
 
     ax.legend(loc='upper right', bbox_to_anchor=(0.15, 0.15))
 
+
+# In[ ]:
+
+
 best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Cora']['Silhouette Score'].idxmax()]['Model']
 k = cora_best_k[best_model_name]
 analysis_path = RESULTS_DIR / f"Cora/{best_model_name}_k{k}_role_analysis.csv"
 
-fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-fig.suptitle(f'Structural Role Profiles on Cora Dataset\n(Best Model: {best_model_name})', fontsize=18)
+if not analysis_path.exists():
+    print(f"Analysis file not found for {best_model_name}. Cannot generate plots.")
+else:
+    print("Loading data and calculating node features for detailed violin plots...")
+
+    role_df = pd.read_csv(analysis_path)
+
+    dataset = Planetoid(root='/tmp/Cora', name='Cora')
+    data = dataset[0]
+
+    ModelClass = MODELS_TO_CLASSES.get(best_model_name)
+    model_instance = ModelClass()
+    _, role_labels = model_instance.predict(data, k=k)
+
+    G = to_networkx(data, to_undirected=True)
+    print("Calculating centrality metrics... (This may take a moment)")
+    node_features_dict = {
+        'degree': dict(G.degree()),
+        'betweenness': nx.betweenness_centrality(G, k=int(0.2*len(G.nodes)), seed=42), 
+        'closeness': nx.closeness_centrality(G),
+        'eigenvector': nx.eigenvector_centrality(G, max_iter=1000, tol=1e-05),
+        'clustering_coeff': nx.clustering(G)
+    }
+    features_df = pd.DataFrame(node_features_dict)
+    features_df['role_id'] = role_labels
+    display(role_df)
+
+
+# In[ ]:
+
 
 if analysis_path.exists():
-    role_df = pd.read_csv(analysis_path)
-    print(f"\n--- Analysis for {best_model_name} (k={k}) ---")
-    display(role_df)
-    plot_role_profiles(role_df, "Cora", best_model_name, k, ax)
-else:
-    ax.set_visible(False)
-    print(f"Analysis file not found for {best_model_name}")
+    fig = plt.figure(figsize=(16, 10))
+    gs = gridspec.GridSpec(5, 2, width_ratios=[1.3, 1], hspace=0.9, wspace=0.3)
+    fig.suptitle(f'Structural Role Analysis for "{best_model_name}" on Cora (k={k})', fontsize=22, y=0.97)
 
-plt.tight_layout(pad=3.0)
-plt.show()
+    ax_radar = fig.add_subplot(gs[:, 0], polar=True)
+    plot_role_profiles(role_df, "Cora", best_model_name, k, ax_radar)
+    ax_radar.set_title("Average Role Profiles (Normalized)", pad=35, fontsize=16)
+
+    metrics_to_plot = ['degree', 'betweenness', 'closeness', 'eigenvector', 'clustering_coeff']
+    feature_display_names = {
+        'degree': 'Degree', 'betweenness': 'Betweenness Centrality',
+        'closeness': 'Closeness Centrality', 'eigenvector': 'Eigenvector Centrality',
+        'clustering_coeff': 'Clustering Coefficient'
+    }
+
+    cmap = plt.get_cmap('plasma')
+    role_colors = list(cmap(np.linspace(0, 1, k)))
+
+    for i, metric in enumerate(metrics_to_plot):
+        ax_violin = fig.add_subplot(gs[i, 1])
+        sns.violinplot(data=features_df, x='role_id', y=metric, ax=ax_violin, palette=role_colors, cut=0, inner='quartile')
+        ax_violin.set_title(f"Distribution of {feature_display_names[metric]}", fontsize=14)
+        ax_violin.set_xlabel("Discovered Role ID", fontsize=12)
+        ax_violin.set_ylabel("Value", fontsize=12)
+        if metric in ['degree', 'betweenness']:
+             ax_violin.set_yscale('log')
+             ax_violin.set_ylabel("Value (Log Scale)", fontsize=12)
 
 
-# ### **Interpretation of Role Characteristics**
-# 
+    plt.show()
+
+
 # The radar chart provides a structural "fingerprint" for each of the three roles discovered by the `Feature-Based_Roles_Graphlets` model on the Cora dataset. By analyzing these fingerprints and the accompanying data, we can assign them meaningful labels:
 # 
 # * **Role 0 (Dark Blue) - "The Periphery":** This role contains the vast majority of nodes in the network (**2,694 papers**). Its structural profile is characterized by the highest average clustering coefficient but the lowest scores on all centrality metrics (degree, betweenness, closeness, and eigenvector). This signature perfectly describes the large body of standard research papers that are part of locally dense, topically-focused clusters but have little influence on the global citation network.
@@ -289,11 +362,8 @@ plt.show()
 # 
 # 
 
-# In[15]:
+# In[ ]:
 
-
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
 
 try:
     best_model_name
@@ -346,30 +416,8 @@ plt.show()
 # Answering this will reveal the relationship between a paper's structural role (e.g., foundational paper, survey paper, niche paper) and its academic subject.
 # 
 
-# In[8]:
+# In[ ]:
 
-
-from torch_geometric.datasets import Planetoid
-import torch
-from pathlib import Path
-from IPython.display import display
-import pandas as pd
-import matplotlib.pyplot as plt
-import sys
-import matplotlib.ticker as mticker
-
-project_root = str(Path().resolve().parent)
-if project_root not in sys.path:
-    print(f"Adding project root to path: {project_root}")
-    sys.path.append(project_root)
-
-from role_discovery.models.GNNEmbedder import GNNEmbedder
-from role_discovery.models.DGIEmbedder import DGIEmbedder
-from role_discovery.models.FeatureBasedRoles import FeatureBasedRoles
-from role_discovery.models.FeatureBasedRolesGraphlets import FeatureBasedRolesGraphlets
-from role_discovery.models.GNNEmbedderGraphlets import GNNEmbedderGraphlets
-from role_discovery.models.DGIEmbedderGraphlets import DGIEmbedderGraphlets
-from role_discovery.utils.experiment_utils import clean_params
 
 cora_subject_names = {
     0: 'Theory', 1: 'Reinforcement Learning', 2: 'Genetic Algorithms',
@@ -383,7 +431,7 @@ data = dataset[0]
 print("\nCell executed successfully: All modules imported.")
 
 
-# In[9]:
+# In[ ]:
 
 
 dataset_name = "Cora"
@@ -434,7 +482,7 @@ else:
     model = ModelClass()
 
 
-# In[10]:
+# In[ ]:
 
 
 if model:
@@ -462,7 +510,7 @@ if model:
 # 
 # * **Role 0:** This larger, more diverse role represents the interdisciplinary core of the network, containing a mix of all subjects.
 
-# In[11]:
+# In[ ]:
 
 
 if model:

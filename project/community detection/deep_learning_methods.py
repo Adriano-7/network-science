@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, SAGEConv 
 import numpy as np 
+import networkx as nx
 
 # GCN Model
 class GCN(torch.nn.Module):
@@ -66,3 +67,33 @@ def run_gnn(model_class, data_pyg, num_classes, num_epochs=200):
 
     partition = {i: predicted_classes[i] for i in range(len(predicted_classes))}
     return partition, embeddings.cpu().numpy()
+
+def calculate_graphlet_features(G):
+    """
+    Calculates graphlet-based features for each node in the graph.
+    
+    As a starting point, this function calculates the number of triangles
+    each node is part of. This is a basic but powerful structural feature.
+    More complex implementations could count orbits of 4-node graphlets.
+
+    Args:
+        G (nx.Graph): A NetworkX graph.
+
+    Returns:
+        torch.Tensor: A tensor of shape (num_nodes, 1) where each element
+                      is the triangle count for the corresponding node.
+    """
+    print("  - Calculating graphlet features (triangle counts)...")
+    
+    triangle_counts = nx.triangles(G)
+    
+    feature_vector = [triangle_counts.get(node, 0) for node in G.nodes()]
+    
+    gdv_tensor = torch.tensor(feature_vector, dtype=torch.float).view(-1, 1)
+
+    mean = gdv_tensor.mean(dim=0, keepdim=True)
+    std = gdv_tensor.std(dim=0, keepdim=True)
+    gdv_tensor = (gdv_tensor - mean) / (std + 1e-8)
+
+    print(f"    Graphlet feature calculation complete. Feature shape: {gdv_tensor.shape}")
+    return gdv_tensor

@@ -117,9 +117,9 @@ if not summary_df.empty:
 # Lastly, the baseline *Feature-Based\_Roles* method performs the worst, showing that **simple centrality features are insufficient** for capturing complex role patterns.
 # 
 
-# ## 2\. Analysis of the "Actor" Dataset
+# ## 2\. Analysis of the "Cora" Dataset
 # 
-# Now, we perform a analysis on a single dataset to understand the results more deeply. We choose the **Actor** dataset.
+# Now, we perform a analysis on a single dataset to understand the results more deeply. We choose the **Cora** dataset.
 # 
 # 
 # ### 2.1. Finding the Optimal Number of Roles ($k$)
@@ -127,21 +127,21 @@ if not summary_df.empty:
 # To select the best number of roles, $k$, for each model, we plot the Silhouette Score against different values of $k$ that were tested. A peak or an "elbow" in the plot suggests an optimal value for $k$.
 # 
 
-# In[4]:
+# In[12]:
 
 
 best_k_series = summary_df.set_index(['Dataset', 'Model'])['Best k']
-actor_best_k = best_k_series.loc['Actor']
+cora_best_k = best_k_series.loc['Cora']
 
 fig, ax = plt.subplots(figsize=(14, 8))
 
 for model_name in MODELS:
-    metrics_path = RESULTS_DIR / f"Actor/{model_name}_clustering_metrics.csv"
+    metrics_path = RESULTS_DIR / f"Cora/{model_name}_clustering_metrics.csv"
     if metrics_path.exists():
         df = pd.read_csv(metrics_path)
         ax.plot(df['k'], df['Silhouette Score'], marker='o', linestyle='-', label=model_name)
 
-ax.set_title('Silhouette Score vs. Number of Roles (k) on Actor Dataset', fontsize=16)
+ax.set_title('Silhouette Score vs. Number of Roles (k) on Cora Dataset', fontsize=16)
 ax.set_xlabel('Number of Roles (k)', fontsize=12)
 ax.set_ylabel('Silhouette Score (Higher is better)', fontsize=12)
 ax.set_xticks(df['k'].unique())
@@ -151,13 +151,12 @@ plt.tight_layout()
 plt.show()
 
 
-# **Interpretation:**
+# ### Interpretation of Optimal Role Count (k) for Cora
 # 
-# This plot provides a clear answer for the optimal number of roles for the Actor dataset.
 # 
-# For the top-performing models—`Feature-Based_Roles_Graphlets` and `GNN_Embedder_DGI_Graphlets`, the Silhouette Score peaks at **k=3** and then consistently declines. This signal indicates that forcing the data into more than three roles leads to less dense and less meaningful clusters.
+# For the top-performing models `Feature-Based_Roles_Graphlets` and `GNN_Embedder_DGI_Graphlets` the Silhouette Score peaks sharply at **k=3** and then consistently declines. This indicates that forcing the data into more than three roles leads to less dense and less meaningful clusters. The drop is particularly pronounced for the `Feature-Based_Roles_Graphlets` model, which achieves an exceptionally high score at k=3 before falling off.
 # 
-# While some of the other models show slightly different behavior, they all achieve significantly lower scores overall. The evidence overwhelmingly suggests that **3 is the optimal number of structural roles** for this network.
+# While some of the other models show slightly different behavior, they all achieve significantly lower scores overall, making their structural groupings less distinct. The evidence overwhelmingly suggests that **3 is the optimal number of structural roles** for the Cora network, a conclusion strongly supported by the best-performing methods.
 
 # ### 2.2. Visualizing the Discovered Roles with t-SNE
 # t-SNE is a dimensionality reduction technique that allows us to visualize the high-dimensional node embeddings (or feature vectors) in 2D. In a good model, the nodes belonging to the same role should form distinct, well-separated visual clusters.
@@ -165,20 +164,20 @@ plt.show()
 # We will load and display the pre-generated t-SNE plots for the best $k$ value of each model.
 # 
 
-# In[5]:
+# In[13]:
 
 
 import matplotlib.image as mpimg
 
 fig, axes = plt.subplots(2, 3, figsize=(24, 16))
 axes = axes.flatten()
-fig.suptitle("Comparison of t-SNE Role Visualizations on the 'Actor' Dataset", fontsize=22)
+fig.suptitle("Comparison of t-SNE Role Visualizations on the 'Cora' Dataset", fontsize=22)
 
 for i, model_name in enumerate(MODELS):
     ax = axes[i]
-    if model_name in actor_best_k:
-        k = actor_best_k[model_name]
-        image_path = RESULTS_DIR / f"Actor/{model_name}_k{k}_tsne.png"
+    if model_name in cora_best_k:
+        k = cora_best_k[model_name]
+        image_path = RESULTS_DIR / f"Cora/{model_name}_k{k}_tsne.png"
         ax.set_title(f"{model_name}\n(Best k={k})", fontsize=16, pad=10)
 
         if image_path.exists():
@@ -197,21 +196,21 @@ plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
 
 
+# ### Interpretation:
 # 
-# **Interpretation:** 
+# These t-SNE plots provide a visual confirmation of the quantitative results from the previous step. 
 # 
-# These t-SNE plots provide a  visual confirmation of the quantitative results from the previous step. The goal is to see tight, well-separated clusters, which indicates a high-quality role assignment.
+# * **Excellent Separation (Graphlet-Based Models):** The two models using graphlet features, `Feature-Based_Roles_Graphlets` and `GNN_Embedder_DGI_Graphlets`, show clean visualizations.
+#     * The `Feature-Based_Roles_Graphlets` model (top-middle) produces a distinct plot with a large central "starburst" role and two other roles that are perfectly isolated.
+#     * Similarly, the `GNN_Embedder_DGI_Graphlets` (bottom-right) identifies a large, dense primary role and two smaller, well-separated satellite roles.
+#     * This visual directly corresponds to their high Silhouette scores and strongly suggests they have uncovered a meaningful core-periphery structure in the network.
 # 
-# * **Excellent Separation (Graphlet-based models):** The two top-performing models, `Feature-Based_Roles_Graphlets` and `GNN_Embedder_DGI_Graphlets`, show remarkably clean visualizations. They both identify one massive, dense primary role (in blue) and a few very small, perfectly isolated satellite roles. This visual clarity directly corresponds to their near-perfect Silhouette scores and suggests they have uncovered a strong core-periphery structure in the network.
-# a
-# * **Moderate Separation (Other GNNs):** The `GNN_Embedder_GAE` and `GNN_Embedder_GAE_Graphlets` models lso manage to separate out the smaller roles, but their main cluster appears more diffuse and less tightly packed. The `GNN_Embedder_DGI` model without graphlets struggles more, with its roles appearing as less cohesive, string like structures.
-# 
-# * **Poor Separation (Baseline Model):** The `Feature-Based_Roles` model, which had the lowest scores, shows exactly what we would expect: heavily intermingled and poorly defined clusters. It is visually difficult to distinguish between the different roles, confirming that the standard features were insufficient for this task.
+# * **Poor Separation (Baseline Model):** The `Feature-Based_Roles` model (top-left), which had the lowest scores, shows exactly what we would expect heavily intermingled and poorly defined clusters. It is visually difficult to distinguish between the different roles, confirming that the standard centrality features were insufficient for this task on the Cora dataset.
 
 # ### 2.3. Interpreting Role Characteristics
 # Moving beyond scores and visualizations to understand *what these roles represent*. We load the analysis files, which contain the average structural properties (degree, betweenness, etc.) for nodes within each role. By examining these properties, we can assign intuitive labels.
 
-# In[6]:
+# In[14]:
 
 
 def plot_role_profiles(df, dataset_name, model_name, k, ax):
@@ -249,18 +248,18 @@ def plot_role_profiles(df, dataset_name, model_name, k, ax):
 
     ax.legend(loc='upper right', bbox_to_anchor=(0.15, 0.15))
 
-best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Actor']['Silhouette Score'].idxmax()]['Model']
-k = actor_best_k[best_model_name]
-analysis_path = RESULTS_DIR / f"Actor/{best_model_name}_k{k}_role_analysis.csv"
+best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Cora']['Silhouette Score'].idxmax()]['Model']
+k = cora_best_k[best_model_name]
+analysis_path = RESULTS_DIR / f"Cora/{best_model_name}_k{k}_role_analysis.csv"
 
 fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-fig.suptitle(f'Structural Role Profiles on Actor Dataset\n(Best Model: {best_model_name})', fontsize=18)
+fig.suptitle(f'Structural Role Profiles on Cora Dataset\n(Best Model: {best_model_name})', fontsize=18)
 
 if analysis_path.exists():
     role_df = pd.read_csv(analysis_path)
     print(f"\n--- Analysis for {best_model_name} (k={k}) ---")
     display(role_df)
-    plot_role_profiles(role_df, "Actor", best_model_name, k, ax)
+    plot_role_profiles(role_df, "Cora", best_model_name, k, ax)
 else:
     ax.set_visible(False)
     print(f"Analysis file not found for {best_model_name}")
@@ -269,16 +268,15 @@ plt.tight_layout(pad=3.0)
 plt.show()
 
 
-# 
 # ### **Interpretation of Role Characteristics**
 # 
-# The radar chart give us a structural "fingerprint" for each of the three roles discovered by the `GNN_Embedder_DGI_Graphlets` model. By analyzing these fingerprints, we can assign them meaningful labels:
+# The radar chart provides a structural "fingerprint" for each of the three roles discovered by the `Feature-Based_Roles_Graphlets` model on the Cora dataset. By analyzing these fingerprints and the accompanying data, we can assign them meaningful labels:
 # 
-# * **Role 0 (Dark Blue) - "Periphery":** This role contains the vast majority of nodes in the network (**7,592**). Its structural profile is the inverse of a hub: it has the lowest average centrality scores across the board but the highest average clustering coefficient. This describes typical members of local communities—they are part of tightly knit local structures but have little to no influence on the global network structure.
+# * **Role 0 (Dark Blue) - "The Periphery":** This role contains the vast majority of nodes in the network (**2,694 papers**). Its structural profile is characterized by the highest average clustering coefficient but the lowest scores on all centrality metrics (degree, betweenness, closeness, and eigenvector). This signature perfectly describes the large body of standard research papers that are part of locally dense, topically-focused clusters but have little influence on the global citation network.
 # 
-# * **Role 1 (Pink) - "Connectors":** This is a role containing just **2 nodes**. These nodes have moderately high eigenvector and closeness centrality, suggesting they are well connected to other influential nodes. However, they are not primary hubs, as their degree and betweenness are lower than Role 2. They likely serve as important secondary connectors or links between specific clusters and the main network core.
+# * **Role 1 (Pink) - "The Global Hub":** This is a highly specialized role containing just a **single node**. This node completely dominates every centrality metric, with an exceptionally high eigenvector score, indicating it is connected to other highly influential nodes. Its extremely low clustering coefficient is the classic signature of a **hub** or **broker** that bridges many disparate parts of the network. This node likely represents a foundational or major survey paper that is cited by a wide variety of sub-fields within the dataset.
 # 
-# * **Role 2 (Yellow) - "Global Hubs":** This is the most distinct and influential role. Despite comprising only **6 nodes**, it dominates every centrality metric: it has the highest average degree, betweenness, closeness, and eigenvector centrality. Its extremely low clustering coefficient signifies that these nodes connect to many other nodes that are not themselves connected. This is the classic signature of a **hub** or **broker** that bridges disparate parts of the network.
+# * **Role 2 (Yellow) - "The Connectors":** This is a small, elite group of **13 nodes**. They exhibit a balanced profile with moderate-to-high centrality scores across the board, significantly higher than the periphery but well below the single global hub. These nodes act as important secondary hubs or bridges, likely connecting different research areas or representing significant papers within a large sub-field.
 
 # ### 2.4. Analyzing Role Interactions with Adjacency Matrices
 # 
@@ -291,7 +289,7 @@ plt.show()
 # 
 # 
 
-# In[7]:
+# In[15]:
 
 
 import matplotlib.pyplot as plt
@@ -301,15 +299,15 @@ try:
     best_model_name
 except NameError:
     print("Warning: 'best_model_name' not defined. Calculating it now.")
-    best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Actor']['Silhouette Score'].idxmax()]['Model']
+    best_model_name = summary_df.loc[summary_df[summary_df['Dataset'] == 'Cora']['Silhouette Score'].idxmax()]['Model']
 
 fig, ax = plt.subplots(1, 1, figsize=(10, 8))
 
 model_to_plot = best_model_name
-dataset_name = 'Actor'
+dataset_name = 'Cora'
 
-if model_to_plot in actor_best_k:
-    k = actor_best_k[model_to_plot]
+if model_to_plot in cora_best_k:
+    k = cora_best_k[model_to_plot]
 
     norm_path = RESULTS_DIR / f"{dataset_name}/{model_to_plot}_k{k}_role_adj_heatmap_normalized.png"
 
@@ -329,18 +327,17 @@ else:
 plt.show()
 
 
-# This heatmap of normalized role connectivity perfectly complements the previous analysis, moving from what the roles *are* to what they *do*. It reveals a clear **Core-Satellite structure** within the Actor network.
+# This heatmap of normalized role connectivity perfectly complements the previous analysis, moving from what the roles *are* to what they *do*. It reveals a clear and striking **Core-Satellite structure** within the Cora citation network.
 # 
-# * **Role 0 acts as the central "Core":** This role is highly insular, with the heatmap showing that **99%** of connections originating from Role 0 nodes connect to other nodes *within* Role 0 (the bright cell at `[0, 0]`). This indicates that it represents a massive, densely interconnected component—likely the mainstream actors who frequently collaborate.
+# * **Role 0 acts as the central "Core":** This role, which we labeled "The Periphery," is highly insular. The heatmap shows that **93%** of connections from Role 0 nodes link back to other nodes *within* Role 0 (the bright cell at `[0, 0]`). This confirms that it represents the massive, densely interconnected body of mainstream research papers in the dataset.
 # 
-# * **Roles 1 and 2 are distinct "Satellite" groups:** Their connectivity is not diverse; instead, it's highly specialized:
-#     * **Role 1** directs **100%** of its connections exclusively to the "Core" (Role 0). It has zero connections to other nodes in Role 1 or to any nodes in the "Hub" role (Role 2).
-#     * **Role 2** (the "Global Hubs") behaves almost identically, directing **99%** of its connections to the "Core" (Role 0).
+# * **Roles 1 and 2 are distinct "Satellite" groups:**
+#     * **Role 1 ** directs **98%** of its connections to the "Core" (Role 0). It has virtually no internal connections or connections to the other satellite role.
+#     * **Role 2 ** behaves almost identically, directing **96%** of its connections to the "Core" (Role 0).
 # 
-# This heatmap shows that our best-performing model did not find three separate communities. Instead, it identified a network architecture defined by function: a large, central core of actors, and two different types of specialized peripheral actors whose primary function is to connect to that core. 
-# 
+# This heatmap provides a powerful conclusion: our best-performing model did not simply find three separate communities. Instead, it identified a network architecture defined by function: a large core of standard papers (Role 0), a single foundational paper (Role 1), and a small group of bridging papers (Role 2), where the primary function of the latter two is to connect to and be cited by the main core.
 
-# ## 3. Bridging Structure and Semantics: Case Study on Cora
+# ## 3. Bridging Structure and Semantics
 # 
 # So far, our analysis has been purely structural. The `GNN_Embedder_DGI_Graphlets` model, which we identified as the top performer on real-world datasets, was trained using only the graph's structure (via graphlet features) and had no access to the actual content or subject area of the papers in the Cora dataset.
 # 

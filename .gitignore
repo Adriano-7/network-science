@@ -2,4 +2,6 @@
 hmk2/movies
 hmk2/script.py
 hmk2/gtrieScanner_src_01
+env/
+__pycache__/
 *__pycache__

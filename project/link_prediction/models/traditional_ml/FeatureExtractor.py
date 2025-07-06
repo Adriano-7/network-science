@@ -4,9 +4,6 @@ from math import log
 
 class HeuristicFeatureExtractor:
     def calculate_features(self, G: nx.Graph, edges: list) -> np.ndarray:
-        """
-        Calculates a set of heuristic features for a given list of edges.
-        """
         if not edges:
             return np.empty((0, 6))
 

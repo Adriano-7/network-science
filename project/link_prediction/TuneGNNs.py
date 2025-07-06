@@ -8,7 +8,6 @@ from models.deep_learning.GCN1 import GCNModel1
 from models.deep_learning.GraphSAGE1 import GraphSAGEModel1
 from models.deep_learning.GCN2 import GCNModel2
 from models.deep_learning.GraphSAGE2 import GraphSAGEModel2
-from models.deep_learning.SEAL import SEALModel
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -27,19 +26,7 @@ def create_objective(model_class, dataset_manager, num_node_features):
             'dropout': trial.suggest_float('dropout', 0.2, 0.6),
         }
 
-        model_name = model_class.__name__
-        if 'SEAL' in model_name:
-            params['num_hops'] = trial.suggest_categorical('num_hops', [1, 2])
-            params['use_feature'] = trial.suggest_categorical('use_feature', [True, False])
-            
-            drnl_feature_dim = 2
-            if params['use_feature']:
-                in_channels = num_node_features + drnl_feature_dim
-            else:
-                in_channels = drnl_feature_dim
-
-        else:
-            in_channels = num_node_features
+        in_channels = num_node_features
 
         try:
             model = model_class(
@@ -101,7 +88,6 @@ def main(dataset_name):
         # 'GraphSAGEModel1': GraphSAGEModel1,
         # 'GCNModel2': GCNModel2,
         # 'GraphSAGEModel2': GraphSAGEModel2,
-        'SEALModel': SEALModel,
     }
 
     for model_name, model_class in models_to_tune.items():

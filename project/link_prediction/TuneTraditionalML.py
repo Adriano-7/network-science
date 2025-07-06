@@ -10,7 +10,6 @@ from models.traditional_ml.RandomForest import RandomForestModel
 from models.traditional_ml.KNN import KNNModel
 
 def calculate_mrr(predictions: torch.Tensor, ground_truth: torch.Tensor) -> float:
-    """Calculates the Mean Reciprocal Rank (MRR) for a set of predictions."""
     y_true = ground_truth.cpu()
     y_pred = predictions.cpu()
     
@@ -25,7 +24,6 @@ def calculate_mrr(predictions: torch.Tensor, ground_truth: torch.Tensor) -> floa
     return mrr
 
 def get_model_and_params(model_name: str, trial: optuna.trial.Trial):
-    """Suggests hyperparameters and instantiates a model for a given trial."""
     if model_name == 'DecisionTree':
         params = {
             'criterion': trial.suggest_categorical('criterion', ['gini', 'entropy']),
@@ -68,7 +66,6 @@ def get_model_and_params(model_name: str, trial: optuna.trial.Trial):
     return model, params
 
 def create_objective(model_name, dataset_manager):
-    """Creates an Optuna objective function for a given model."""
     train_data = dataset_manager.train_data
     val_edges = dataset_manager.all_val_edges
     val_labels = dataset_manager.all_val_labels
@@ -78,13 +75,8 @@ def create_objective(model_name, dataset_manager):
             model, params = get_model_and_params(model_name, trial)
             print(f"\n[Trial {trial.number}] Testing {model_name} with params: {params}")
             
-            # Train model on the full training set
             model.train(train_data)
-
-            # Predict on the validation set
             val_scores = model.predict_edges(train_data, val_edges)
-            
-            # Calculate MRR score for evaluation
             mrr_score = calculate_mrr(val_scores, val_labels)
 
             print(f"  > Trial {trial.number} for {model_name} finished. Validation MRR: {mrr_score:.4f}")

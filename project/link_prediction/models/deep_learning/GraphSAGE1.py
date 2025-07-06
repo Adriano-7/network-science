@@ -84,7 +84,7 @@ class GraphSAGEModel1(LinkPredictionModel):
                 val_auc = self.test_on_data(val_data)
                 print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val AUC: {val_auc:.4f}')
 
-                # --- Early stopping logic ---
+                #  Early stopping logic 
                 if val_auc > self.best_val_auc:
                     self.best_val_auc = val_auc
                     self.best_model_state = copy.deepcopy(self.model.state_dict())

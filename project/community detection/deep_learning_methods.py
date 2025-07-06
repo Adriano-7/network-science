@@ -34,11 +34,6 @@ class GraphSage(torch.nn.Module):
         return x, embeddings 
 
 def run_gnn(model_class, data_pyg, num_classes, num_epochs=200):
-    """
-    Trains a GNN model (of model_class type) for node classification and returns predicted communities.
-    Assumes data_pyg has x, edge_index, y, train_mask.
-    Also returns the learned node embeddings.
-    """
     device = torch.device('cpu') 
     data_pyg = data_pyg.to(device)
 
@@ -54,7 +49,7 @@ def run_gnn(model_class, data_pyg, num_classes, num_epochs=200):
     model.train()
     for epoch in range(1, num_epochs + 1):
         optimizer.zero_grad()
-        out_logits, _ = model(data_pyg.x, data_pyg.edge_index) # Only use logits for loss
+        out_logits, _ = model(data_pyg.x, data_pyg.edge_index) 
         loss = criterion(out_logits[data_pyg.train_mask], data_pyg.y[data_pyg.train_mask])
         loss.backward()
         optimizer.step()

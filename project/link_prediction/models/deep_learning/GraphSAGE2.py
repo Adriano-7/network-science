@@ -73,7 +73,7 @@ class GraphSAGEModel2(LinkPredictionModel):
                 val_mrr = self._calculate_mrr_for_validation(train_data, val_data)
                 print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}, Val MRR: {val_mrr:.4f}')
 
-                # --- Early stopping logic based on MRR ---
+                #  Early stopping logic
                 if val_mrr > self.best_val_mrr:
                     self.best_val_mrr = val_mrr
                     self.best_model_state = copy.deepcopy(self.model.state_dict())

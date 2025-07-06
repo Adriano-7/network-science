@@ -40,7 +40,7 @@ class Evaluator:
             auc = roc_auc_score(y_true, y_pred)
             hits, mrr = self._calculate_ranking_metrics(y_true, y_pred)
 
-            print("\n--- Evaluation Report ---")
+            print("\n Evaluation Report ")
             print(f"Model: {model_name}")
             print(f"AUC Score: {auc:.4f}")
             print(f"Mean Reciprocal Rank (MRR): {mrr:.4f}")

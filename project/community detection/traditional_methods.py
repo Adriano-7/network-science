@@ -21,11 +21,6 @@ from deep_learning_methods import run_gnn, GCN, GraphSage
 warnings.filterwarnings("ignore")
 
 def get_cora_subgraph_pyg(full_data_pyg, num_nodes_subgraph=150):
-    """
-    Extracts a connected subgraph of a specified number of nodes from the full Cora graph.
-    Returns a PyTorch Geometric Data object with relabeled nodes (0-indexed),
-    node features, ground truth, and randomly generated train/val/test masks.
-    """
     G_full = to_networkx(full_data_pyg, to_undirected=True)
     
     nodes_in_full_graph = list(G_full.nodes())
@@ -100,12 +95,8 @@ def get_cora_subgraph_pyg(full_data_pyg, num_nodes_subgraph=150):
     print(f"Created PyG Cora subgraph with {subgraph_data.num_nodes} nodes and {subgraph_data.num_edges} edges.")
     return subgraph_data
 
-
-# Dataset Loading and Preparation 
-
 def load_and_prepare_dataset(dataset_name):
-    """Loads a PyTorch Geometric dataset and prepares it."""
-    print(f"\n--- Loading {dataset_name} Dataset ---")
+    print(f"\n Loading {dataset_name} Dataset ")
     G, ground_truth = None, None
     data_pyg = None 
 
@@ -195,7 +186,7 @@ def calculate_external_metrics(ground_truth, predicted_partition):
     fms = fowlkes_mallows_score(ground_truth, predicted_labels)
     return nmi, ari, fms
 
-# Community Detection Algorithms - Traditional Methods
+# Community Detection Algorithms -> Traditional Methods
 
 def run_louvain(G):
     """Runs the Louvain community detection algorithm."""
@@ -261,7 +252,7 @@ def run_label_propagation(G):
     return partition
 
 
-# Plotting Functions for Visualization 
+# Visualization Functions 
 
 def plot_graph_communities(G, partition, title, ground_truth_labels=None, figsize=(8, 8)):
     plt.figure(figsize=figsize)
@@ -349,7 +340,6 @@ def plot_embeddings_2d(embeddings, labels, title, figsize=(8, 8)):
     plt.close()
 
 
-# Main Execution Loo
 
 datasets_to_test = [
     'KarateClub',    # Small (34 nodes) - has GT, good for graph plot & embeddings
@@ -538,12 +528,10 @@ for dataset_name in datasets_to_test:
         for algo_name, (embeddings, predicted_labels_array) in embeddings_for_plotting_data.items():
             plot_embeddings_2d(embeddings, predicted_labels_array, f"{dataset_name} - {algo_name} (Predicted Communities)")
 
-# Display results in a DataFrame
 results_df = pd.DataFrame(results)
-print("\n--- Summary of Community Detection Results ---")
+print("\n Summary of Community Detection Results ")
 print(results_df.round(4).to_markdown(index=False))
 
-# Save results as a markdown table
 markdown_table = results_df.round(4).to_markdown(index=False)
 with open("community_detection_results.md", "w", encoding="utf-8") as f:
     f.write("# Summary of Community Detection Results\n\n")

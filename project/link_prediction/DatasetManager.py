@@ -40,7 +40,6 @@ class DatasetManager:
         print("Dataset ready. Splits are now fixed and reproducible.")
 
     def _prepare_edge_sets(self):
-        """Prepare combined edge sets for training, validation and testing."""
         def safe_concat(pos_edges, neg_edges, pos_labels, neg_labels):
             if pos_edges.size(1) == 0 and neg_edges.size(1) == 0:
                 return torch.empty((2, 0), dtype=torch.long), torch.empty(0, dtype=torch.float)
@@ -53,14 +52,12 @@ class DatasetManager:
                 labels = torch.cat([pos_labels, neg_labels], dim=0)
                 return edges, labels
 
-        # Training edges (only has edge_index, not separate pos/neg)
         if hasattr(self.train_data, 'pos_edge_label_index'):
             self.all_train_edges, self.all_train_labels = safe_concat(
                 self.train_data.pos_edge_label_index, self.train_data.neg_edge_label_index,
                 self.train_data.pos_edge_label, self.train_data.neg_edge_label
             )
         else:
-            # For training data, we only have the main edge_index
             self.all_train_edges = self.train_data.edge_index
             self.all_train_labels = torch.ones(self.train_data.edge_index.size(1))
         

@@ -23,7 +23,6 @@ class FeatureBasedRoles(RoleDiscoveryModel):
         G_directed = to_networkx(data, to_undirected=False)
         G_undirected = to_networkx(data, to_undirected=True)
 
-        ##### Feature Extraction #####
         # Basic Centrality Measures
         degree_centrality = nx.degree_centrality(G_undirected)
         closeness_centrality = nx.closeness_centrality(G_undirected)

@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from .RoleDiscoveryModel import RoleDiscoveryModel
-from .DGIEmbedder import Encoder, corruption # Re-use from the original DGI
+from .DGIEmbedder import Encoder, corruption 
 from ..utils.feature_engineering import get_graphlet_features
 
 class DGIEmbedderGraphlets(RoleDiscoveryModel):
@@ -23,7 +23,6 @@ class DGIEmbedderGraphlets(RoleDiscoveryModel):
         print("Initialized DGI Embedder with GRAPHLET features.")
 
     def train(self, data: Data):
-        # Use graphlet features instead of node degrees
         graphlet_feats_np = get_graphlet_features(data, scale=False)
         graphlet_feats_tensor = torch.from_numpy(graphlet_feats_np).float()
         

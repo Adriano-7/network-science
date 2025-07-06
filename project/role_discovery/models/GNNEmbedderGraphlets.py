@@ -8,7 +8,7 @@ import copy
 import numpy as np
 
 from .RoleDiscoveryModel import RoleDiscoveryModel
-from .GNNEmbedder import GCNEncoder # Re-use the same encoder architecture
+from .GNNEmbedder import GCNEncoder 
 from ..utils.feature_engineering import get_graphlet_features
 
 class GNNEmbedderGraphlets(RoleDiscoveryModel):
@@ -32,11 +32,9 @@ class GNNEmbedderGraphlets(RoleDiscoveryModel):
         print(f"Initialized GNN Embedder (GAE) with GRAPHLET features.")
 
     def train(self, graph_data: Data):
-        # Use graphlet features instead of node degrees. No scaling for GNNs.
         graphlet_feats_np = get_graphlet_features(graph_data, scale=False)
         graphlet_feats_tensor = torch.from_numpy(graphlet_feats_np).float()
         
-        # We use the graphlet features as 'x' for the GNN
         structural_data = Data(x=graphlet_feats_tensor, edge_index=graph_data.edge_index)
         
         in_channels = structural_data.num_features
@@ -55,12 +53,11 @@ class GNNEmbedderGraphlets(RoleDiscoveryModel):
         print(f"Starting GAE training with graphlet features (seed={self.seed})...")
         torch.manual_seed(self.seed)
         
-        # --- CORRECTED LINE ---
         split_transform = T.RandomLinkSplit(
             num_val=self.val_ratio, num_test=self.test_ratio,
             is_undirected=True, 
-            add_negative_train_samples=False, # Correct for GAE
-            split_labels=True                  # This was the missing piece
+            add_negative_train_samples=False, 
+            split_labels=True                 
         )
         train_data, val_data, _ = split_transform(structural_data)
         

@@ -4,7 +4,6 @@ import pandas as pd
 from pathlib import Path
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 
-# Project-specific imports
 from .models.FeatureBasedRoles import FeatureBasedRoles
 from .models.FeatureBasedRolesGraphlets import FeatureBasedRolesGraphlets
 from .models.GNNEmbedder import GNNEmbedder
@@ -16,9 +15,6 @@ from .utils.visualization import visualize_roles_tsne
 from .utils.analysis import analyze_role_characteristics, create_and_visualize_role_adjacency
 
 def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = False):
-    """
-    Runs the core role discovery experiment for a given dataset.
-    """
     print("\n" + "#"*60)
     print(f"RUNNING EVALUATION ON: {dataset_name.upper()}")
     print(f"Using tuned models: {use_tuned_models}")
@@ -51,12 +47,12 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
             print(f"Warning: No tuning results found for {model_name}. It will be skipped.")
             return None
 
-        # --- GAE (Degree features) ---
+        #  GAE (Degree features) 
         gae_params = get_best_params_for_model('GNN_Embedder_GAE')
         if gae_params:
             models_to_test["GNN_Embedder_GAE"] = GNNEmbedder(**gae_params, model_path=str(output_dir / "best_GNN_Embedder_GAE_model.pt"), force_retrain=False)
 
-        # --- GAE (Graphlet features) ---
+        #  GAE (Graphlet features) 
         gae_graphlet_params = get_best_params_for_model('GNN_Embedder_GAE_Graphlets')
         if gae_graphlet_params:
             models_to_test["GNN_Embedder_GAE_Graphlets"] = GNNEmbedderGraphlets(**gae_graphlet_params, model_path=str(output_dir / "best_GNN_Embedder_GAE_Graphlets_model.pt"), force_retrain=False)
@@ -67,7 +63,7 @@ def run_role_discovery_experiment(dataset_name: str, use_tuned_models: bool = Fa
 
         dgi_graphlet_params = get_best_params_for_model('GNN_Embedder_DGI_Graphlets')
         if dgi_graphlet_params:
-            dgi_graphlet_params.pop('in_channels', None) # This model infers in_channels
+            dgi_graphlet_params.pop('in_channels', None)
             models_to_test["GNN_Embedder_DGI_Graphlets"] = DGIEmbedderGraphlets(**dgi_graphlet_params, model_path=str(output_dir / "best_GNN_Embedder_DGI_Graphlets_model.pt"), force_retrain=False)
 
     else:

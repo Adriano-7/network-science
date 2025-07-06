@@ -76,9 +76,7 @@ def create_objective(model_name, dataset_manager):
             print(f"\n[Trial {trial.number}] Testing {model_name} with params: {params}")
             
             model.train(train_data)
-
             val_scores = model.predict_edges(train_data, val_edges)
-            
             mrr_score = calculate_mrr(val_scores, val_labels)
 
             print(f"  > Trial {trial.number} for {model_name} finished. Validation MRR: {mrr_score:.4f}")
@@ -90,6 +88,7 @@ def create_objective(model_name, dataset_manager):
     return objective
 
 def save_tuning_results(dataset_name, model_name, best_trial, output_file):
+    """Saves the best trial's results to a JSON file."""
     results_dir = os.path.dirname(output_file)
     os.makedirs(results_dir, exist_ok=True)
 
